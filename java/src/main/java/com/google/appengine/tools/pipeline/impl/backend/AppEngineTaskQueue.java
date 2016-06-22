@@ -29,6 +29,7 @@ import com.google.appengine.tools.cloudstorage.RetryHelper;
 import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
+import com.google.appengine.tools.pipeline.impl.tasks.ObjRefTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.apphosting.api.ApiProxy;
 
@@ -137,7 +138,13 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   private TaskOptions toTaskOptions(Task task) {
     final QueueSettings queueSettings = task.getQueueSettings();
 
-    TaskOptions taskOptions = TaskOptions.Builder.withUrl(TaskHandler.handleTaskUrl());
+    String url = TaskHandler.handleTaskUrl();
+    url += "/taskClass:" + task.getClass().getSimpleName();
+    if (task instanceof ObjRefTask) {
+      url += "/objRefTaskKey:" + ((ObjRefTask) task).getKey().getName();
+    }
+    url += "/taskName:" + task.getName();
+    TaskOptions taskOptions = TaskOptions.Builder.withUrl(url);
     if (queueSettings.getOnBackend() != null) {
       taskOptions.header("Host", BackendServiceFactory.getBackendService().getBackendAddress(
           queueSettings.getOnBackend()));

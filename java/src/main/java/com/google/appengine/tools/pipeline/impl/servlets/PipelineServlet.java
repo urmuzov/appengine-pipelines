@@ -71,7 +71,7 @@ public class PipelineServlet extends HttpServlet {
     }
 
     public boolean matches(String path) {
-      return pathComponent.equals(path);
+      return path != null && path.startsWith(pathComponent);
     }
   }
 
