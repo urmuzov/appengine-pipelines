@@ -30,6 +30,7 @@ import com.google.appengine.tools.pipeline.JobSetting.IntValuedSetting;
 import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;
 import com.google.appengine.tools.pipeline.JobSetting.OnBackend;
 import com.google.appengine.tools.pipeline.JobSetting.OnModule;
+import com.google.appengine.tools.pipeline.JobSetting.OnModuleVersion;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.appengine.tools.pipeline.JobSetting.WaitForSetting;
@@ -116,7 +117,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   private static final String JOB_INSTANCE_PROPERTY = "jobInstance";
   private static final String RUN_BARRIER_PROPERTY = "runBarrier";
   private static final String FINALIZE_BARRIER_PROPERTY = "finalizeBarrier";
-  private static final String STATE_PROPERTY = "state";
+  public static final String STATE_PROPERTY = "state";
   private static final String EXCEPTION_HANDLING_ANCESTOR_KEY_PROPERTY =
       "exceptionHandlingAncestorKey";
   private static final String EXCEPTION_HANDLER_SPECIFIED_PROPERTY = "hasExceptionHandler";
@@ -127,7 +128,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   private static final String IGNORE_EXCEPTION_PROPERTY = "ignoreException";
   private static final String OUTPUT_SLOT_PROPERTY = "outputSlot";
   private static final String EXCEPTION_KEY_PROPERTY = "exceptionKey";
-  private static final String START_TIME_PROPERTY = "startTime";
+  public static final String START_TIME_PROPERTY = "startTime";
   private static final String END_TIME_PROPERTY = "endTime";
   private static final String CHILD_KEYS_PROPERTY = "childKeys";
   private static final String ATTEMPT_NUM_PROPERTY = "attemptNum";
@@ -350,6 +351,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     }
     if (queueSettings.getOnBackend() == null) {
       String module = queueSettings.getOnModule();
+      String moduleVersion = queueSettings.getModuleVersion();
       if (module == null) {
         String currentBackend = getCurrentBackend();
         if (currentBackend != null) {
@@ -359,7 +361,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
           queueSettings.setOnModule(modulesService.getCurrentModule());
           queueSettings.setModuleVersion(modulesService.getCurrentVersion());
         }
-      } else {
+      } else if (moduleVersion == null) {
         ModulesService modulesService = ModulesServiceFactory.getModulesService();
         if (module.equals(modulesService.getCurrentModule())) {
           queueSettings.setModuleVersion(modulesService.getCurrentVersion());
@@ -444,6 +446,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       queueSettings.setOnBackend(((OnBackend) setting).getValue());
     } else if (setting instanceof OnModule) {
       queueSettings.setOnModule(((OnModule) setting).getValue());
+    } else if (setting instanceof OnModuleVersion) {
+      queueSettings.setModuleVersion(((OnModuleVersion) setting).getValue());
     } else if (setting instanceof OnQueue) {
       queueSettings.setOnQueue(((OnQueue) setting).getValue());
     } else if (setting instanceof StatusConsoleUrl){
