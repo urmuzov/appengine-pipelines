@@ -18,12 +18,7 @@ import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueConstants;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
-import com.google.appengine.api.taskqueue.TaskHandle;
-import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.tools.cloudstorage.ExceptionHandler;
 import com.google.appengine.tools.cloudstorage.RetryHelper;
 import com.google.appengine.tools.cloudstorage.RetryParams;
@@ -170,6 +165,29 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     if (null != delayInSeconds) {
       taskOptions.countdownMillis(delayInSeconds * 1000L);
       queueSettings.setDelayInSeconds(null);
+    }
+    if (queueSettings.getQueueRetryTaskRetryLimit() != null
+            || queueSettings.getQueueRetryTaskAgeLimitSeconds() != null
+            || queueSettings.getQueueRetryMinBackoffSeconds() != null
+            || queueSettings.getQueueRetryMaxBackoffSeconds() != null
+            || queueSettings.getQueueRetryMaxDoublings() != null) {
+      RetryOptions retryOptions = RetryOptions.Builder.withDefaults();
+      if (queueSettings.getQueueRetryTaskRetryLimit() != null) {
+        retryOptions.taskRetryLimit(queueSettings.getQueueRetryTaskRetryLimit().intValue());
+      }
+      if (queueSettings.getQueueRetryTaskAgeLimitSeconds() != null) {
+        retryOptions.taskAgeLimitSeconds(queueSettings.getQueueRetryTaskAgeLimitSeconds().intValue());
+      }
+      if (queueSettings.getQueueRetryMinBackoffSeconds() != null) {
+        retryOptions.minBackoffSeconds(queueSettings.getQueueRetryMinBackoffSeconds().intValue());
+      }
+      if (queueSettings.getQueueRetryMaxBackoffSeconds() != null) {
+        retryOptions.maxBackoffSeconds(queueSettings.getQueueRetryMaxBackoffSeconds().intValue());
+      }
+      if (queueSettings.getQueueRetryMaxDoublings() != null) {
+        retryOptions.maxDoublings(queueSettings.getQueueRetryMaxDoublings().intValue());
+      }
+      taskOptions.retryOptions(retryOptions);
     }
     addProperties(taskOptions, task.toProperties());
     String taskName = task.getName();

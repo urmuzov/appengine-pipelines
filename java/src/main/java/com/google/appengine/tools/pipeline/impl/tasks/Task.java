@@ -92,6 +92,76 @@ public abstract class Task {
         return task.getQueueSettings().getOnQueue();
       }
     },
+    QUEUE_RETRY_TASK_RETRY_LIMIT {
+      @Override
+      void setProperty(Task task, String value) {
+        if (value != null) {
+          task.getQueueSettings().setQueueRetryTaskRetryLimit(Long.parseLong(value));
+        }
+      }
+
+      @Override
+      String getProperty(Task task) {
+        Long value = task.getQueueSettings().getQueueRetryTaskRetryLimit();
+        return value == null ? null : value.toString();
+      }
+    },
+    QUEUE_RETRY_TASK_AGE_LIMIT_SECONDS {
+      @Override
+      void setProperty(Task task, String value) {
+        if (value != null) {
+          task.getQueueSettings().setQueueRetryTaskAgeLimitSeconds(Long.parseLong(value));
+        }
+      }
+
+      @Override
+      String getProperty(Task task) {
+        Long value = task.getQueueSettings().getQueueRetryTaskAgeLimitSeconds();
+        return value == null ? null : value.toString();
+      }
+    },
+    QUEUE_RETRY_TASK_MIN_BACKOFF_SECONDS {
+      @Override
+      void setProperty(Task task, String value) {
+        if (value != null) {
+          task.getQueueSettings().setQueueRetryMinBackoffSeconds(Long.parseLong(value));
+        }
+      }
+
+      @Override
+      String getProperty(Task task) {
+        Long value = task.getQueueSettings().getQueueRetryMinBackoffSeconds();
+        return value == null ? null : value.toString();
+      }
+    },
+    QUEUE_RETRY_TASK_MAX_BACKOFF_SECONDS {
+      @Override
+      void setProperty(Task task, String value) {
+        if (value != null) {
+          task.getQueueSettings().setQueueRetryMaxBackoffSeconds(Long.parseLong(value));
+        }
+      }
+
+      @Override
+      String getProperty(Task task) {
+        Long value = task.getQueueSettings().getQueueRetryMaxBackoffSeconds();
+        return value == null ? null : value.toString();
+      }
+    },
+    QUEUE_RETRY_TASK_MAX_DOUBLINGS {
+      @Override
+      void setProperty(Task task, String value) {
+        if (value != null) {
+          task.getQueueSettings().setQueueRetryMaxDoublings(Long.parseLong(value));
+        }
+      }
+
+      @Override
+      String getProperty(Task task) {
+        Long value = task.getQueueSettings().getQueueRetryMaxDoublings();
+        return value == null ? null : value.toString();
+      }
+    },
     DELAY {
       @Override
       void setProperty(Task task, String value) {
