@@ -14,10 +14,13 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.pipeline.Job;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.cloud.datastore.BlobValue;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.ListValue;
+import com.google.cloud.datastore.Value;
 
 import java.io.IOException;
 
@@ -39,7 +42,7 @@ public class JobInstanceRecord extends PipelineModelObject {
   private final Key jobKey;
   private final String jobClassName;
   private final String jobDisplayName;
-  private final Object value;
+  private final Value value;
 
   // transient
   private Job<?> jobInstance;
@@ -59,28 +62,32 @@ public class JobInstanceRecord extends PipelineModelObject {
 
   public JobInstanceRecord(Entity entity) {
     super(entity);
-    jobKey = (Key) entity.getProperty(JOB_KEY_PROPERTY);
-    jobClassName = (String) entity.getProperty(JOB_CLASS_NAME_PROPERTY);
-    if (entity.hasProperty(JOB_DISPLAY_NAME_PROPERTY)) {
-      jobDisplayName = (String) entity.getProperty(JOB_DISPLAY_NAME_PROPERTY);
+    jobKey = entity.getKey(JOB_KEY_PROPERTY);
+    jobClassName = entity.getString(JOB_CLASS_NAME_PROPERTY);
+    if (entity.getNames().contains(JOB_DISPLAY_NAME_PROPERTY)) {
+      jobDisplayName = entity.getString(JOB_DISPLAY_NAME_PROPERTY);
     } else {
       jobDisplayName = jobClassName;
     }
-    if (entity.hasProperty(INSTANCE_BYTES_PROPERTY)) {
-      value = entity.getProperty(INSTANCE_BYTES_PROPERTY);
+    if (entity.getNames().contains(INSTANCE_BYTES_PROPERTY)) {
+      value = entity.getValue(INSTANCE_BYTES_PROPERTY);
     } else {
-      value = entity.getProperty(INSTANCE_VALUE_PROPERTY);
+      value = entity.getValue(INSTANCE_VALUE_PROPERTY);
     }
   }
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
-    entity.setProperty(JOB_KEY_PROPERTY, jobKey);
-    entity.setProperty(JOB_CLASS_NAME_PROPERTY, jobClassName);
-    entity.setUnindexedProperty(INSTANCE_VALUE_PROPERTY, value);
-    entity.setUnindexedProperty(JOB_DISPLAY_NAME_PROPERTY, jobDisplayName);
-    return entity;
+    Entity.Builder entity = toProtoEntity();
+    entity.set(JOB_KEY_PROPERTY, jobKey);
+    entity.set(JOB_CLASS_NAME_PROPERTY, jobClassName);
+    if (value instanceof BlobValue) {
+      entity.set(INSTANCE_BYTES_PROPERTY, value);
+    } else if (value instanceof ListValue) {
+      entity.set(INSTANCE_VALUE_PROPERTY, value);
+    }
+    entity.set(JOB_DISPLAY_NAME_PROPERTY, jobDisplayName);
+    return entity.build();
   }
 
   @Override

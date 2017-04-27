@@ -14,9 +14,9 @@
 
 package com.google.appengine.tools.pipeline.impl.tasks;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 
 import java.util.Properties;
@@ -51,13 +51,13 @@ public class DelayedSlotFillTask extends ObjRefTask {
 
   protected DelayedSlotFillTask(Type type, String taskName, Properties properties) {
     super(type, taskName, properties);
-    rootJobKey = KeyFactory.stringToKey(properties.getProperty(ROOT_JOB_KEY_PARAM));
+    rootJobKey = KeyHelper.stringToKey(properties.getProperty(ROOT_JOB_KEY_PARAM));
   }
 
   @Override
   protected void addProperties(Properties properties) {
     super.addProperties(properties);
-    properties.setProperty(ROOT_JOB_KEY_PARAM, KeyFactory.keyToString(rootJobKey));
+    properties.setProperty(ROOT_JOB_KEY_PARAM, KeyHelper.keyToString(rootJobKey));
   }
 
   @Override

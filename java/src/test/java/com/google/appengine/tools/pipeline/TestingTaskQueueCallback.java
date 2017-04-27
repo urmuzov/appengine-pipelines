@@ -16,7 +16,7 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.api.urlfetch.URLFetchServicePb;
 import com.google.appengine.api.urlfetch.URLFetchServicePb.URLFetchRequest;
-import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig.DeferredTaskCallback;
+import com.google.appengine.tools.development.testing.DeferredTaskCallback;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;

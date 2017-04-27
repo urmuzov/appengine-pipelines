@@ -16,9 +16,9 @@ package com.google.appengine.tools.pipeline.impl.tasks;
 
 import static com.google.appengine.tools.pipeline.impl.util.StringUtils.UTF_8;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 
 import java.util.ArrayList;
@@ -80,12 +80,12 @@ public class FanoutTask extends Task {
    */
   public FanoutTask(Type type, String taskName, Properties properties) {
     super(type, taskName, properties);
-    this.recordKey = KeyFactory.stringToKey(properties.getProperty(RECORD_KEY_PROPERTY));
+    this.recordKey = KeyHelper.stringToKey(properties.getProperty(RECORD_KEY_PROPERTY));
   }
 
   @Override
   protected void addProperties(Properties properties) {
-    properties.setProperty(RECORD_KEY_PROPERTY, KeyFactory.keyToString(recordKey));
+    properties.setProperty(RECORD_KEY_PROPERTY, KeyHelper.keyToString(recordKey));
   }
 
   public Key getRecordKey() {

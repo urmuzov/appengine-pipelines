@@ -14,12 +14,12 @@
 
 package com.google.appengine.tools.pipeline;
 
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.FutureValueImpl;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.PromisedValueImpl;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import com.google.cloud.datastore.Key;
 
 import java.io.Serializable;
 import java.util.List;
@@ -176,7 +176,7 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T> FutureValue<T> futureCallUnchecked(JobSetting[] settings, Job<?> jobInstance,
-      Object... params) {
+                                                Object... params) {
     JobRecord childJobRecord = PipelineManager.registerNewJobRecord(
         updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
     thisJobRecord.appendChildKey(childJobRecord.getKey());
@@ -238,7 +238,7 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T, T1, T2> FutureValue<T> futureCall(Job2<T, T1, T2> jobInstance, Value<? extends T1> v1,
-      Value<? extends T2> v2, JobSetting... settings) {
+                                               Value<? extends T2> v2, JobSetting... settings) {
     return futureCallUnchecked(settings, jobInstance, v1, v2);
   }
 
@@ -262,8 +262,8 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T, T1, T2, T3> FutureValue<T> futureCall(Job3<T, T1, T2, T3> jobInstance,
-      Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
-      JobSetting... settings) {
+                                                   Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
+                                                   JobSetting... settings) {
     return futureCallUnchecked(settings, jobInstance, v1, v2, v3);
   }
 
@@ -289,11 +289,10 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T, T1, T2, T3, T4> FutureValue<T> futureCall(Job4<T, T1, T2, T3, T4> jobInstance,
-      Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
-      Value<? extends T4> v4, JobSetting... settings) {
+                                                       Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
+                                                       Value<? extends T4> v4, JobSetting... settings) {
     return futureCallUnchecked(settings, jobInstance, v1, v2, v3, v4);
   }
-
 
   /**
    * Invoke this method from within the {@code run} method of a <b>generator
@@ -319,8 +318,8 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T, T1, T2, T3, T4, T5> FutureValue<T> futureCall(Job5<T, T1, T2, T3, T4, T5> jobInstance,
-      Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
-      Value<? extends T4> v4, Value<? extends T5> v5, JobSetting... settings) {
+                                                           Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
+                                                           Value<? extends T4> v4, Value<? extends T5> v5, JobSetting... settings) {
     return futureCallUnchecked(settings, jobInstance, v1, v2, v3, v4, v5);
   }
 
@@ -472,24 +471,6 @@ public abstract class Job<E> implements Serializable {
   }
 
   /**
-   * Constructs a new {@code JobSetting.OnModule}. This method is only
-   * syntactic sugar. {@code onModule(x)} is equivalent to
-   * {@code new JobSetting.OnModule(x)}.
-   */
-  public static JobSetting.OnModule onModule(String module) {
-    return new JobSetting.OnModule(module);
-  }
-
-  /**
-   * Constructs a new {@code JobSetting.OnModuleVersion}. This method is only
-   * syntactic sugar. {@code onModuleVersion(x)} is equivalent to
-   * {@code new JobSetting.OnModuleVersion(x)}.
-   */
-  public static JobSetting.OnModuleVersion onModuleVersion(String moduleVersion) {
-    return new JobSetting.OnModuleVersion(moduleVersion);
-  }
-
-  /**
    * Constructs a new {@code JobSetting.OnQueue}. This method is only
    * syntactic sugar. {@code onQueue(x)} is equivalent to
    * {@code new JobSetting.OnQueue(x)}.
@@ -560,10 +541,6 @@ public abstract class Job<E> implements Serializable {
 
   protected String getOnBackend() {
     return thisJobRecord.getQueueSettings().getOnBackend();
-  }
-
-  protected String getOnModule() {
-    return thisJobRecord.getQueueSettings().getOnModule();
   }
 
   /**

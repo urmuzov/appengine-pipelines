@@ -14,28 +14,64 @@
 
 package com.google.appengine.tools.pipeline;
 
-import static org.mockito.Mockito.when;
-
 import com.google.appengine.tools.pipeline.impl.servlets.JsonClassFilterHandler;
-
+import org.junit.Assert;
+import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import static org.mockito.Mockito.when;
 
 /**
  * Test for {@link JsonClassFilterHandler}.
  */
 public class JsonClassFilterHandlerTest extends PipelineTest {
 
-  @Mock private HttpServletRequest request;
-  @Mock private HttpServletResponse response;
   private final StringWriter output = new StringWriter();
+  @Mock
+  private HttpServletRequest request;
+  @Mock
+  private HttpServletResponse response;
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp();
+    MockitoAnnotations.initMocks(this);
+    when(response.getWriter()).thenReturn(new PrintWriter(output));
+  }
+
+  @Test
+  public void testHandlerNoResults() throws Exception {
+    JsonClassFilterHandler.doGet(request, response);
+    Assert.assertEquals("{\"classPaths\": []}", output.toString());
+  }
+
+  @Test
+  public void testHandlerWithResults() throws Exception {
+    PipelineService service = PipelineServiceFactory.newPipelineService();
+    String pipelineId1 = service.startNewPipeline(new Main1Job());
+    String pipelineId2 = service.startNewPipeline(new Main2Job(false));
+    String pipelineId3 = service.startNewPipeline(new Main2Job(true),
+            new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
+    String helloWorld = (String) waitForJobToComplete(pipelineId1);
+    Assert.assertEquals("hello world", helloWorld);
+    String hiThere = (String) waitForJobToComplete(pipelineId2);
+    Assert.assertEquals("hi there", hiThere);
+    String bla = (String) waitForJobToComplete(pipelineId3);
+    Assert.assertEquals("bla", bla);
+    JsonClassFilterHandler.doGet(request, response);
+    String expected = "{\"classPaths\": [\n"
+            + "  \"" + Main1Job.class.getName() + "\",\n"
+            + "  \"" + Main2Job.class.getName() + "\"\n"
+            + "]}";
+    Assert.assertEquals(expected, output.toString());
+  }
 
   @SuppressWarnings("serial")
   private static class Main1Job extends Job0<String> {
@@ -89,38 +125,5 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
     public Value<String> run(T obj) {
       return immediate(obj == null ? "null" : obj.toString());
     }
-  }
-
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
-    MockitoAnnotations.initMocks(this);
-    when(response.getWriter()).thenReturn(new PrintWriter(output));
-  }
-
-  public void testHandlerNoResults() throws Exception {
-    JsonClassFilterHandler.doGet(request, response);
-    assertEquals("{\"classPaths\": []}", output.toString());
-  }
-
-  public void testHandlerWithResults() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId1 = service.startNewPipeline(new Main1Job());
-    String pipelineId2 = service.startNewPipeline(new Main2Job(false));
-    String pipelineId3 = service.startNewPipeline(new Main2Job(true),
-        new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
-    String helloWorld = (String) waitForJobToComplete(pipelineId1);
-    assertEquals("hello world", helloWorld);
-    String hiThere = (String) waitForJobToComplete(pipelineId2);
-    assertEquals("hi there", hiThere);
-    String bla = (String) waitForJobToComplete(pipelineId3);
-    assertEquals("bla", bla);
-    JsonClassFilterHandler.doGet(request, response);
-    System.out.println(output.toString());
-    String expected = "{\"classPaths\": [\n"
-        + "  \"" + Main1Job.class.getName() + "\",\n"
-        + "  \"" + Main2Job.class.getName() + "\"\n"
-        + "]}";
-    assertEquals(expected, output.toString());
   }
 }

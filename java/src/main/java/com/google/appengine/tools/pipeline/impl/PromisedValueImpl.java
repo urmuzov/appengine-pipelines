@@ -14,9 +14,9 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.PromisedValue;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 
 /**
@@ -35,7 +35,7 @@ public class PromisedValueImpl<E> extends FutureValueImpl<E> implements Promised
 
   @Override
   public String getHandle() {
-    return KeyFactory.keyToString(slot.getKey());
+    return KeyHelper.keyToString(slot.getKey());
   }
 
 }

@@ -14,10 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
+import com.google.cloud.datastore.DatastoreException;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.Value;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -153,27 +154,36 @@ public abstract class PipelineModelObject {
     String name = GUIDGenerator.nextGUID();
     Key key;
     if (null == parentKey) {
-      key = KeyFactory.createKey(kind, name);
+      key = KeyHelper.createKey(kind, name);
     } else {
-      key = parentKey.getChild(kind, name);
+      key = Key.newBuilder(parentKey, kind, name).build();
     }
     return key;
   }
 
   private static Key extractRootJobKey(Entity entity) {
-    return (Key) entity.getProperty(ROOT_JOB_KEY_PROPERTY);
+    return entity.getKey(ROOT_JOB_KEY_PROPERTY);
   }
 
   private static Key extractGeneratorJobKey(Entity entity) {
-    return (Key) entity.getProperty(GENERATOR_JOB_PROPERTY);
+    try {
+      return entity.getKey(GENERATOR_JOB_PROPERTY);
+    } catch (DatastoreException e) {
+      return null;
+    }
+
   }
 
   private static String extractGraphGUID(Entity entity) {
-    return (String) entity.getProperty(GRAPH_GUID_PROPERTY);
+    try {
+      return entity.getString(GRAPH_GUID_PROPERTY);
+    } catch (DatastoreException e) {
+      return null;
+    }
   }
 
   private static String extractType(Entity entity) {
-    return entity.getKind();
+    return entity.getKey().getKind();
   }
 
   private static Key extractKey(Entity entity) {
@@ -182,14 +192,14 @@ public abstract class PipelineModelObject {
 
   public abstract Entity toEntity();
 
-  protected Entity toProtoEntity() {
-    Entity entity = new Entity(key);
-    entity.setProperty(ROOT_JOB_KEY_PROPERTY, rootJobKey);
+  protected Entity.Builder toProtoEntity() {
+    Entity.Builder entity = Entity.newBuilder(key)
+        .set(ROOT_JOB_KEY_PROPERTY, rootJobKey);
     if (generatorJobKey != null) {
-      entity.setProperty(GENERATOR_JOB_PROPERTY, generatorJobKey);
+      entity.set(GENERATOR_JOB_PROPERTY, generatorJobKey);
     }
     if (graphGUID != null) {
-      entity.setUnindexedProperty(GRAPH_GUID_PROPERTY, graphGUID);
+      entity.set(GRAPH_GUID_PROPERTY, graphGUID);
     }
     return entity;
   }
@@ -226,8 +236,12 @@ public abstract class PipelineModelObject {
 
   protected static <E> List<E> getListProperty(String propertyName, Entity entity) {
     @SuppressWarnings("unchecked")
-    List<E> list = (List<E>) entity.getProperty(propertyName);
-    return list == null ? new LinkedList<E>() : list;
+    List<Value<?>> list = entity.getList(propertyName);
+    List<E> out = new LinkedList<E>();
+    for (Value value : list) {
+      out.add((E) value.get());
+    }
+    return list == null ? new LinkedList<E>() : out;
   }
 
   protected static String getKeyName(Key key) {

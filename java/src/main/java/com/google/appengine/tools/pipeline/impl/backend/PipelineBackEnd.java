@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.api.datastore.Key;
+import com.gigware.deferred.DeferredTask;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
@@ -25,6 +25,8 @@ import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.Value;
 
 import java.io.IOException;
 import java.util.Set;
@@ -109,7 +111,7 @@ public interface PipelineBackEnd {
    * Given an arbitrary Java Object, returns another object that encodes the
    * given object but that is guaranteed to be of a type supported by the App
    * Engine Data Store. Use
-   * {@link #deserializeValue(PipelineModelObject, Object)} to reverse this
+   * {@link #deserializeValue(PipelineModelObject, Value)} to reverse this
    * operation.
    *
    * @param model The model that is associated with the value.
@@ -117,7 +119,7 @@ public interface PipelineBackEnd {
    * @return The serialized version of the object.
    * @throws IOException if any problem occurs
    */
-  Object serializeValue(PipelineModelObject model, Object value) throws IOException;
+  Value serializeValue(PipelineModelObject model, Object value) throws IOException;
 
   /**
    * Reverses the operation performed by
@@ -128,7 +130,7 @@ public interface PipelineBackEnd {
    * @return The deserialized version of the object.
    * @throws IOException if any problem occurs
    */
-  Object deserializeValue(PipelineModelObject model, Object serializedVersion)
+  Object deserializeValue(PipelineModelObject model, Value serializedVersion)
       throws IOException;
 
   /**
@@ -184,6 +186,13 @@ public interface PipelineBackEnd {
    * single task in isolation.
    */
   void enqueue(Task task);
+
+  /**
+   * Enqueue deferred task
+   * @param queueName
+   * @param deferredTask
+   */
+  void enqueueDeferred(String queueName, DeferredTask deferredTask);
 
   /**
    * Queries the data store for all root Pipeline.

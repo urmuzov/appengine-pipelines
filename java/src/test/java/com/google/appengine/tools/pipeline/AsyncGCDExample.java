@@ -14,15 +14,14 @@
 
 package com.google.appengine.tools.pipeline;
 
-
 import com.google.appengine.tools.pipeline.demo.GCDExample;
 
 /**
- *
  * @author rudominer@google.com (Mitch Rudominer)
- *
  */
 public class AsyncGCDExample {
+
+  public static volatile Callback callback;
 
   /**
    * A Callback
@@ -36,8 +35,6 @@ public class AsyncGCDExample {
 
     public void acceptOutput(String output);
   }
-
-  public static volatile Callback callback;
 
   /**
    * 1. Start a new thread in which we ask the user for two integers. 2. After
@@ -131,7 +128,7 @@ public class AsyncGCDExample {
     @Override
     public Value<Void> run(String userName, Integer a, Integer b, Integer gcd) {
       String output =
-          "Hello, " + userName + ". The GCD of " + a + " and " + b + " is " + gcd + ".";
+              "Hello, " + userName + ". The GCD of " + a + " and " + b + " is " + gcd + ".";
       callback.acceptOutput(output);
       return null;
     }

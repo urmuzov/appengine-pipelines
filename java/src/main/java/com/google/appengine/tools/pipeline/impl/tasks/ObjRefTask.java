@@ -14,9 +14,10 @@
 
 package com.google.appengine.tools.pipeline.impl.tasks;
 
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 
 import java.util.Properties;
 
@@ -58,7 +59,7 @@ public abstract class ObjRefTask extends Task {
     if (namePrefix == null) {
       throw new IllegalArgumentException("namePrix is null.");
     }
-    return namePrefix + KeyFactory.keyToString(key);
+    return namePrefix + KeyHelper.keyToString(key);
   }
 
   /**
@@ -75,7 +76,7 @@ public abstract class ObjRefTask extends Task {
    */
   protected ObjRefTask(Type type, String taskName, Properties properties) {
     super(type, taskName, properties);
-    key = KeyFactory.stringToKey(properties.getProperty(KEY_PARAM));
+    key = KeyHelper.stringToKey(properties.getProperty(KEY_PARAM));
   }
 
   public Key getKey() {
@@ -84,7 +85,7 @@ public abstract class ObjRefTask extends Task {
 
   @Override
   protected void addProperties(Properties properties) {
-    String keyString = KeyFactory.keyToString(key);
+    String keyString = KeyHelper.keyToString(key);
     properties.setProperty(KEY_PARAM, keyString);
   }
 

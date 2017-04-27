@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.api.datastore.Key;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
 
 import java.io.IOException;
@@ -43,7 +43,7 @@ public class PipelineServlet extends HttpServlet {
    * This must match the URL in web.xml
    */
   public static String baseUrl() {
-    String baseURL =  System.getProperty(BASE_URL_PROPERTY, "/_ah/pipeline/");
+    String baseURL = System.getProperty(BASE_URL_PROPERTY, "/_ah/pipeline/");
     if (!baseURL.endsWith("/")) {
       baseURL += "/";
     }

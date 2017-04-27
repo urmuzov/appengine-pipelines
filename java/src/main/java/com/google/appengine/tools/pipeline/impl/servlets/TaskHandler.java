@@ -76,11 +76,13 @@ public class TaskHandler {
     String queueName = request.getHeader(TASK_QUEUE_NAME_HEADER);
     if (queueName != null && !queueName.isEmpty()) {
       String onQueue = task.getQueueSettings().getOnQueue();
-       if (onQueue == null || onQueue.isEmpty()) {
-         task.getQueueSettings().setOnQueue(queueName);
-       }
-       Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
-       attributes.put(TASK_QUEUE_NAME_HEADER, queueName);
+      if (onQueue == null || onQueue.isEmpty()) {
+        task.getQueueSettings().setOnQueue(queueName);
+      }
+      if (ApiProxy.getCurrentEnvironment() != null) {
+        Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
+        attributes.put(TASK_QUEUE_NAME_HEADER, queueName);
+      }
     }
     return task;
   }

@@ -14,8 +14,8 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
 import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
@@ -41,7 +41,7 @@ import java.util.Map;
 public class JsonGenerator {
 
   private static String toString(Key key) {
-    return KeyFactory.keyToString(key);
+    return KeyHelper.keyToString(key);
   }
 
   private static final String PIPELINE_ID = "pipelineId";

@@ -16,6 +16,8 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.pipeline.demo.LetterCountExample;
 import com.google.appengine.tools.pipeline.demo.LetterCountExample.LetterCounter;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.util.Map.Entry;
 import java.util.SortedMap;
@@ -26,67 +28,72 @@ import java.util.TreeMap;
  */
 public class LetterCounterTest extends PipelineTest {
 
+  private static final String SSB =
+          "Oh, say, can you see, by the dawn's early light, \n"
+                  + "What so proudly we hailed at the twilight's last gleaming? \n"
+                  + "Whose broad stripes and bright stars, thru the perilous fight, \n"
+                  + "O'er the ramparts we watched, were so gallantly streaming? \n"
+                  + "And the rockets' red glare, the bombs bursting in air, \n"
+                  + "Gave proof through the night that our flag was still there. \n"
+                  + "O say, does that star-spangled banner yet wave \n"
+                  + "O'er the land of the free and the home of the brave?\n"
+                  + "On the shore dimly seen through the mists of the deep, \n"
+                  + "Where the foe's haughty host in dread silence reposes, \n"
+                  + "What is that which the breeze, o'er the towering steep, \n"
+                  + "As it fitfully blows, half conceals, half discloses? \n"
+                  + "Now it catches the gleam of the morning's first beam, \n"
+                  + "In full glory reflected, now shines on the stream: \n"
+                  + "Tis the star-spangled banner: O, long may it wave \n"
+                  + "O'er the land of the free and the home of the brave!     \n"
+                  + "And where is that band who so vauntingly swore \n"
+                  + "That the havoc of war and the battle's confusion \n"
+                  + "A home and a country should leave us no more? \n"
+                  + "Their blood has washed out their foul footsteps' pollution. \n"
+                  + "No refuge could save the hireling and slave \n"
+                  + "From the terror of flight or the gloom of the grave: \n"
+                  + "And the star-spangled banner in triumph doth wave \n"
+                  + "O'er the land of the free and the home of the brave. \n"
+                  + "O, thus be it ever when freemen shall stand, \n"
+                  + "Between their loved home and the war's desolation! \n"
+                  + "Blest with victory and peace, may the heav'n-rescued land \n"
+                  + "Praise the Power that hath made and preserved us a nation! \n"
+                  + "Then conquer we must, when our cause it is just, \n"
+                  + "And this be our motto: \"In God is our trust\" \n"
+                  + "And the star-spangled banner in triumph shall wave \n"
+                  + "O'er the land of the free and the home of the brave!";
+
   @Override
   protected boolean isHrdSafe() {
     return false;
   }
 
-  private static final String SSB =
-      "Oh, say, can you see, by the dawn's early light, \n"
-          + "What so proudly we hailed at the twilight's last gleaming? \n"
-          + "Whose broad stripes and bright stars, thru the perilous fight, \n"
-          + "O'er the ramparts we watched, were so gallantly streaming? \n"
-          + "And the rockets' red glare, the bombs bursting in air, \n"
-          + "Gave proof through the night that our flag was still there. \n"
-          + "O say, does that star-spangled banner yet wave \n"
-          + "O'er the land of the free and the home of the brave?\n"
-          + "On the shore dimly seen through the mists of the deep, \n"
-          + "Where the foe's haughty host in dread silence reposes, \n"
-          + "What is that which the breeze, o'er the towering steep, \n"
-          + "As it fitfully blows, half conceals, half discloses? \n"
-          + "Now it catches the gleam of the morning's first beam, \n"
-          + "In full glory reflected, now shines on the stream: \n"
-          + "Tis the star-spangled banner: O, long may it wave \n"
-          + "O'er the land of the free and the home of the brave!     \n"
-          + "And where is that band who so vauntingly swore \n"
-          + "That the havoc of war and the battle's confusion \n"
-          + "A home and a country should leave us no more? \n"
-          + "Their blood has washed out their foul footsteps' pollution. \n"
-          + "No refuge could save the hireling and slave \n"
-          + "From the terror of flight or the gloom of the grave: \n"
-          + "And the star-spangled banner in triumph doth wave \n"
-          + "O'er the land of the free and the home of the brave. \n"
-          + "O, thus be it ever when freemen shall stand, \n"
-          + "Between their loved home and the war's desolation! \n"
-          + "Blest with victory and peace, may the heav'n-rescued land \n"
-          + "Praise the Power that hath made and preserved us a nation! \n"
-          + "Then conquer we must, when our cause it is just, \n"
-          + "And this be our motto: \"In God is our trust\" \n"
-          + "And the star-spangled banner in triumph shall wave \n"
-          + "O'er the land of the free and the home of the brave!";
-
+  @Test
   public void testLetterCounter3() throws Exception {
     doLetterCounterTest("Only three words.");
   }
 
+  @Test
   public void testLetterCounter4() throws Exception {
     doLetterCounterTest("Only four short words.");
   }
 
+  @Test
   public void testLetterCounter5() throws Exception {
     doLetterCounterTest("Only five pretty short words.");
   }
 
+  @Test
   public void testLetterCounter6() throws Exception {
     doLetterCounterTest("Only six pretty short words total.");
   }
 
+  @Test
   public void testLetterCounterBig() throws Exception {
     doLetterCounterTest("The woods are lovely dark and deep. "
-        + "But I have promises to keep. And miles to go before I sleep.");
+            + "But I have promises to keep. And miles to go before I sleep.");
   }
 
-
+  @Test
   public void testLetterCounterHuge() throws Exception {
     doLetterCounterTest(SSB);
   }
@@ -102,6 +109,6 @@ public class LetterCounterTest extends PipelineTest {
         expectedCountsLettersOnly.put(entry.getKey(), entry.getValue());
       }
     }
-    assertEquals(expectedCountsLettersOnly, counts);
+    Assert.assertEquals(expectedCountsLettersOnly, counts);
   }
 }

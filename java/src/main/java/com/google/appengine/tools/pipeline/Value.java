@@ -47,9 +47,9 @@ package com.google.appengine.tools.pipeline;
  * its {@code run()} method and the Job's final output will be computed by one
  * of the child Jobs.
  * </ul>
- * 
+ *
  * @author rudominer@google.com (Mitch Rudominer)
- * 
+ *
  * @param <E> The underlying type represented by this <code>Value</code>
  */
 public interface Value<E> {

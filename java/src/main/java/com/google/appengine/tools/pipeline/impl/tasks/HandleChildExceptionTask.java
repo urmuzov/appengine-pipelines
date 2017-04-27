@@ -14,9 +14,9 @@
 
 package com.google.appengine.tools.pipeline.impl.tasks;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 
 import java.util.Properties;
 
@@ -43,13 +43,13 @@ public class HandleChildExceptionTask extends ObjRefTask {
 
   protected HandleChildExceptionTask(Type type, String taskName, Properties properties) {
     super(type, taskName, properties);
-    failedChildKey = KeyFactory.stringToKey(properties.getProperty(FAILED_CHILD_KEY_PARAM));
+    failedChildKey = KeyHelper.stringToKey(properties.getProperty(FAILED_CHILD_KEY_PARAM));
   }
 
   @Override
   protected void addProperties(Properties properties) {
     super.addProperties(properties);
-    properties.setProperty(FAILED_CHILD_KEY_PARAM, KeyFactory.keyToString(failedChildKey));
+    properties.setProperty(FAILED_CHILD_KEY_PARAM, KeyHelper.keyToString(failedChildKey));
   }
 
   @Override

@@ -1,17 +1,15 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.taskqueue.TaskHandle;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
-
+import com.google.cloud.datastore.Key;
 import junit.framework.TestCase;
 
 import java.util.ArrayList;
@@ -31,8 +29,7 @@ public class AppEngineTaskQueueTest extends TestCase {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
     taskQueueConfig.setDisableAutoTaskExecution(true);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(), taskQueueConfig,
-        new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
     helper.setUp();
   }
 
@@ -118,8 +115,8 @@ public class AppEngineTaskQueueTest extends TestCase {
 
   private Task createTask() {
     String name = GUIDGenerator.nextGUID();
-    Key key = KeyFactory.createKey("testType", name);
-    Task task = new RunJobTask(key, new QueueSettings().setModuleVersion("m1"));
+    Key key = KeyHelper.createKey("testType", name);
+    Task task = new RunJobTask(key, new QueueSettings());
     return task;
   }
 }

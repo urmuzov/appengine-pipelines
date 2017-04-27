@@ -14,17 +14,18 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.gigware.deferred.DeferredTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 
 import java.util.Collection;
 
 /**
- * 
  * @author rudominer@google.com (Mitch Rudominer)
- * 
  */
 public interface PipelineTaskQueue {
-  public void enqueue(Task task);
+  void enqueue(Task task);
 
-  public void enqueue(final Collection<Task> tasks);
+  void enqueue(final Collection<Task> tasks);
+
+  void enqueueDeferred(String queueName, DeferredTask deferredTask);
 }

@@ -14,77 +14,46 @@
 
 package com.google.appengine.tools.pipeline;
 
-import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
-
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
-import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
+import com.google.cloud.datastore.Key;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
-import junit.framework.TestCase;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
- *
  */
-public class BarrierTest extends TestCase {
+public class BarrierTest extends BaseEnvTest {
 
-  private LocalServiceTestHelper helper =
-      new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());
-
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
-    helper.setUp();
-    System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
+  public static Slot createDummySlot() {
+    Key dummyKey = KeyHelper.createKey("dummy", "dummy");
+    return new Slot(dummyKey, dummyKey, "abc");
   }
 
-  @Override
-  public void tearDown() throws Exception {
-    helper.tearDown();
-    super.tearDown();
-  }
-
+  @Test
   public void testArgumentBuilding() throws Exception {
-    doArgumentBuildingTest(new Integer[] {});
-    doArgumentBuildingTest(new String[] {"hello"}, "hello");
-    doArgumentBuildingTest(new Integer[] {5, 7}, 5, 7);
-    doArgumentBuildingTest(new Object[] {"hello", 5, null}, "hello", 5, null);
-    doArgumentBuildingTest(new Object[] {6, 8}, new PhantomMarker(5), 6, new PhantomMarker(7), 8);
-    doArgumentBuildingTest(new Object[] {Lists.newArrayList(1, 2, 3)}, new ListMarker(1, 2, 3));
-    doArgumentBuildingTest(new Object[] {Lists.newArrayList(1, 2, 3)}, Lists
-        .newArrayList(1, 2, 3));
-    doArgumentBuildingTest(new Object[] {Lists.newArrayList(1, 2, 3),
-        Lists.newArrayList("red", "blue")}, Lists.newArrayList(1, 2, 3), Lists.newArrayList(
-        "red", "blue"));
-    doArgumentBuildingTest(new Object[] {"hello", 5, Lists.newArrayList(1, 2, 3), "apple",
-        Lists.newArrayList(2, 3, 4), Lists.newArrayList(4, 5, 6), Lists.newArrayList(7),
-        Lists.newArrayList("red", "blue")}, "hello", 5, new PhantomMarker("goodbye"),
-        new ListMarker(1, 2, 3), "apple", new ListMarker(2, 3, 4), new ListMarker(4, 5, 6),
-        new PhantomMarker("banana"), new ListMarker(7), Lists.newArrayList("red", "blue"));
-  }
-
-  private static class ListMarker {
-    public List<?> valueList;
-
-    ListMarker(Object... elements) {
-      valueList = ImmutableList.copyOf(elements);
-    }
-  }
-
-  private static class PhantomMarker {
-    Object value;
-
-    PhantomMarker(Object v) {
-      value = v;
-    }
+    doArgumentBuildingTest(new Integer[]{});
+    doArgumentBuildingTest(new String[]{"hello"}, "hello");
+    doArgumentBuildingTest(new Integer[]{5, 7}, 5, 7);
+    doArgumentBuildingTest(new Object[]{"hello", 5, null}, "hello", 5, null);
+    doArgumentBuildingTest(new Object[]{6, 8}, new PhantomMarker(5), 6, new PhantomMarker(7), 8);
+    doArgumentBuildingTest(new Object[]{Lists.newArrayList(1, 2, 3)}, new ListMarker(1, 2, 3));
+    doArgumentBuildingTest(new Object[]{Lists.newArrayList(1, 2, 3)}, Lists
+            .newArrayList(1, 2, 3));
+    doArgumentBuildingTest(new Object[]{Lists.newArrayList(1, 2, 3),
+            Lists.newArrayList("red", "blue")}, Lists.newArrayList(1, 2, 3), Lists.newArrayList(
+            "red", "blue"));
+    doArgumentBuildingTest(new Object[]{"hello", 5, Lists.newArrayList(1, 2, 3), "apple",
+                    Lists.newArrayList(2, 3, 4), Lists.newArrayList(4, 5, 6), Lists.newArrayList(7),
+                    Lists.newArrayList("red", "blue")}, "hello", 5, new PhantomMarker("goodbye"),
+            new ListMarker(1, 2, 3), "apple", new ListMarker(2, 3, 4), new ListMarker(4, 5, 6),
+            new PhantomMarker("banana"), new ListMarker(7), Lists.newArrayList("red", "blue"));
   }
 
   private void doArgumentBuildingTest(Object[] expectedArguments, Object... slotValues) {
@@ -117,14 +86,25 @@ public class BarrierTest extends TestCase {
   }
 
   private void assertEqualArrays(Object[] expected, Object[] actual) {
-    assertEquals(expected.length, actual.length);
+    Assert.assertEquals(expected.length, actual.length);
     for (int i = 0; i < expected.length; i++) {
-      assertEquals("i=" + i, expected[i], actual[i]);
+      Assert.assertEquals("i=" + i, expected[i], actual[i]);
     }
   }
 
-  public static Slot createDummySlot() {
-    Key dummyKey = KeyFactory.createKey("dummy", "dummy");
-    return new Slot(dummyKey, dummyKey, "abc");
+  private static class ListMarker {
+    public List<?> valueList;
+
+    ListMarker(Object... elements) {
+      valueList = ImmutableList.copyOf(elements);
+    }
+  }
+
+  private static class PhantomMarker {
+    Object value;
+
+    PhantomMarker(Object v) {
+      value = v;
+    }
   }
 }

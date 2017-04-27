@@ -14,9 +14,14 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.cloud.Timestamp;
+import com.google.cloud.datastore.Blob;
+import com.google.cloud.datastore.BlobValue;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.ListValue;
+import com.google.cloud.datastore.Value;
 
 import java.io.IOException;
 import java.util.Date;
@@ -47,8 +52,7 @@ public class Slot extends PipelineModelObject {
 
   // transient
   private List<Barrier> waitingOnMeInflated;
-  private Object serializedVersion;
-
+  private Blob serializedVersion;
 
   public Slot(Key rootJobKey, Key generatorJobKey, String graphGUID) {
     super(rootJobKey, generatorJobKey, graphGUID);
@@ -61,18 +65,23 @@ public class Slot extends PipelineModelObject {
 
   public Slot(Entity entity, boolean lazy) {
     super(entity);
-    filled = (Boolean) entity.getProperty(FILLED_PROPERTY);
-    fillTime = (Date) entity.getProperty(FILL_TIME_PROPERTY);
-    sourceJobKey = (Key) entity.getProperty(SOURCE_JOB_KEY_PROPERTY);
+    filled = entity.getBoolean(FILLED_PROPERTY);
+    if (entity.getNames().contains(FILL_TIME_PROPERTY)) {
+      fillTime = new Date(entity.getTimestamp(FILL_TIME_PROPERTY).getSeconds() * 1000);
+    }
+    if (entity.getNames().contains(SOURCE_JOB_KEY_PROPERTY)) {
+      sourceJobKey = entity.getKey(SOURCE_JOB_KEY_PROPERTY);
+    }
     waitingOnMeKeys = getListProperty(WAITING_ON_ME_PROPERTY, entity);
     if (lazy) {
-      serializedVersion = entity.getProperty(VALUE_PROPERTY);
+      serializedVersion = entity.getBlob(VALUE_PROPERTY);
     } else {
-      value = deserializeValue(entity.getProperty(VALUE_PROPERTY));
+
+      value = deserializeValue(entity.getValue(VALUE_PROPERTY));
     }
   }
 
-  private Object deserializeValue(Object serializedValue) {
+  private Object deserializeValue(Value serializedValue) {
     try {
       return PipelineManager.getBackEnd().deserializeValue(this, serializedValue);
     } catch (IOException e) {
@@ -82,26 +91,31 @@ public class Slot extends PipelineModelObject {
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
-    entity.setUnindexedProperty(FILLED_PROPERTY, filled);
+    Entity.Builder entity = toProtoEntity();
+    entity.set(FILLED_PROPERTY, filled);
     if (null != fillTime) {
-      entity.setUnindexedProperty(FILL_TIME_PROPERTY, fillTime);
+      entity.set(FILL_TIME_PROPERTY, Timestamp.of(fillTime));
     }
     if (null != sourceJobKey) {
-      entity.setProperty(SOURCE_JOB_KEY_PROPERTY, sourceJobKey);
+      entity.set(SOURCE_JOB_KEY_PROPERTY, sourceJobKey);
     }
-    entity.setProperty(WAITING_ON_ME_PROPERTY, waitingOnMeKeys);
+    entity.set(WAITING_ON_ME_PROPERTY, KeyHelper.convertKeyList(waitingOnMeKeys));
     if (serializedVersion != null) {
-      entity.setUnindexedProperty(VALUE_PROPERTY, serializedVersion);
+      entity.set(VALUE_PROPERTY, serializedVersion);
     } else {
       try {
-        entity.setUnindexedProperty(VALUE_PROPERTY,
-            PipelineManager.getBackEnd().serializeValue(this, value));
+        Value serialized =
+            PipelineManager.getBackEnd().serializeValue(this, value);
+        if (serialized instanceof BlobValue || serialized instanceof ListValue) {
+          entity.set(VALUE_PROPERTY, serialized);
+        } else {
+          throw new RuntimeException("PipelineManager.getBackEnd().serializeValue return unknown");
+        }
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
-    return entity;
+    return entity.build();
   }
 
   @Override
@@ -127,7 +141,7 @@ public class Slot extends PipelineModelObject {
 
   public Object getValue() {
     if (serializedVersion != null) {
-      value = deserializeValue(serializedVersion);
+      value = deserializeValue(BlobValue.of(serializedVersion));
       serializedVersion = null;
     }
     return value;

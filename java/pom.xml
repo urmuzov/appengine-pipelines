@@ -1,4 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.google.appengine.tools</groupId>
@@ -9,7 +9,7 @@
   <organization>
     <name>Google</name>
   </organization>
-  <version>0.3-SNAPSHOT</version>
+  <version>0.2.13-CA-QUEUE-PROXY-SNAPSHOT</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -18,13 +18,14 @@
     </license>
   </licenses>
   <properties>
-    <appengine.target.version>[1.9.1,2.0)</appengine.target.version>
+    <appengine.target.version>1.9.51</appengine.target.version>
   </properties>
   <build>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.6.1</version>
         <configuration>
           <source>1.7</source>
           <target>1.7</target>
@@ -46,6 +47,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.0.0</version>
         <executions>
           <execution>
             <id>add-test-source</id>
@@ -64,9 +66,11 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.20</version>
         <configuration>
           <excludes>
             <exclude>com/google/appengine/tools/pipeline/PipelineTest.java</exclude>
+            <exclude>com/google/appengine/tools/pipeline/BaseEnvTest.java</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -95,7 +99,7 @@
       <artifactId>guava</artifactId>
       <!-- version number of release candidates come before the ##.0 in maven,
            use .99 to get latest release within the specified major version -->
-      <version>[15.0,20.99]</version>
+      <version>19.0</version>
     </dependency>
     <dependency>
       <groupId>javax.servlet</groupId>
@@ -104,9 +108,14 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.appengine.tools</groupId>
-      <artifactId>appengine-gcs-client</artifactId>
-      <version>[0.4,1.0)</version>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-datastore</artifactId>
+      <version>1.0.0-rc2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.gigware</groupId>
+      <artifactId>deferred-tasks</artifactId>
+      <version>3.0.0-SNAPSHOT</version>
     </dependency>
     <!-- Test Dependencies -->
     <dependency>
@@ -129,9 +138,21 @@
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
-       <artifactId>mockito-all</artifactId>
-       <version>1.8.4</version>
-       <scope>test</scope>
+      <artifactId>mockito-all</artifactId>
+      <version>1.8.4</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
+  <repositories>
+    <repository>
+      <id>goldmine-snapshots</id>
+      <url>https://nexus.cloudaware.com/content/repositories/snapshots/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 </project>

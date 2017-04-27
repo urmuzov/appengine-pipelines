@@ -14,9 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.tools.pipeline.FutureList;
 import com.google.appengine.tools.pipeline.ImmediateValue;
 import com.google.appengine.tools.pipeline.Job;
@@ -25,8 +22,11 @@ import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.OrphanedObjectException;
 import com.google.appengine.tools.pipeline.Value;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.ProxyAppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.backend.TaskAlreadyExistException;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec.Group;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
@@ -35,6 +35,7 @@ import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord.InflationType;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord.State;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.model.SlotDescriptor;
@@ -51,6 +52,8 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.datastore.Key;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -72,7 +75,7 @@ public class PipelineManager {
 
   private static final Logger logger = Logger.getLogger(PipelineManager.class.getName());
 
-  private static PipelineBackEnd backEnd = new AppEngineBackEnd();
+  private static PipelineBackEnd backEnd;
 
   /**
    * Creates and launches a new Pipeline
@@ -108,7 +111,7 @@ public class PipelineManager {
         updateSpec, settings, null, null, rootJobInstance, params);
     updateSpec.setRootJobKey(jobRecord.getRootJobKey());
     // Save the Pipeline model objects and enqueue the tasks that start the Pipeline executing.
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    getBackEnd().save(updateSpec, jobRecord.getQueueSettings());
     return jobRecord.getKey().getName();
   }
 
@@ -319,17 +322,17 @@ public class PipelineManager {
    * @throws IllegalArgumentException if root pipeline was not found.
    */
   public static PipelineObjects queryFullPipeline(String rootJobHandle) {
-    Key rootJobKey = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, rootJobHandle);
-    return backEnd.queryFullPipeline(rootJobKey);
+    Key rootJobKey = KeyHelper.createKey(JobRecord.DATA_STORE_KIND, rootJobHandle);
+    return getBackEnd().queryFullPipeline(rootJobKey);
   }
 
   public static Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(
       String classFilter, String cursor, int limit) {
-    return backEnd.queryRootPipelines(classFilter, cursor, limit);
+    return getBackEnd().queryRootPipelines(classFilter, cursor, limit);
   }
 
   public static Set<String> getRootPipelinesDisplayName() {
-    return backEnd.getRootPipelinesDisplayName();
+    return getBackEnd().getRootPipelinesDisplayName();
   }
 
   private static void checkNonEmpty(String s, String name) {
@@ -350,9 +353,9 @@ public class PipelineManager {
    */
   public static JobRecord getJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
+    Key key = KeyHelper.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
     logger.finest("getJob: " + key.getName());
-    return backEnd.queryJob(key, JobRecord.InflationType.FOR_OUTPUT);
+    return getBackEnd().queryJob(key, JobRecord.InflationType.FOR_OUTPUT);
   }
 
   /**
@@ -364,12 +367,12 @@ public class PipelineManager {
    */
   public static void stopJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
-    JobRecord jobRecord = backEnd.queryJob(key, JobRecord.InflationType.NONE);
+    Key key = KeyHelper.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
+    JobRecord jobRecord = getBackEnd().queryJob(key, JobRecord.InflationType.NONE);
     jobRecord.setState(State.STOPPED);
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     updateSpec.getOrCreateTransaction("stopJob").includeJob(jobRecord);
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    getBackEnd().save(updateSpec, jobRecord.getQueueSettings());
   }
 
   /**
@@ -381,12 +384,12 @@ public class PipelineManager {
    */
   public static void cancelJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
-    JobRecord jobRecord = backEnd.queryJob(key, InflationType.NONE);
+    Key key = KeyHelper.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
+    JobRecord jobRecord = getBackEnd().queryJob(key, InflationType.NONE);
     CancelJobTask cancelJobTask = new CancelJobTask(key, jobRecord.getQueueSettings());
     try {
-      backEnd.enqueue(cancelJobTask);
-    } catch (TaskAlreadyExistsException e) {
+      getBackEnd().enqueue(cancelJobTask);
+    } catch (TaskAlreadyExistException e) {
       // OK. Some other thread has already enqueued this task.
     }
   }
@@ -409,14 +412,14 @@ public class PipelineManager {
   public static void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
       throws NoSuchObjectException, IllegalStateException {
     checkNonEmpty(pipelineHandle, "pipelineHandle");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, pipelineHandle);
-    backEnd.deletePipeline(key, force, async);
+    Key key = KeyHelper.createKey(JobRecord.DATA_STORE_KIND, pipelineHandle);
+    getBackEnd().deletePipeline(key, force, async);
   }
 
   public static void acceptPromisedValue(String promiseHandle, Object value)
       throws NoSuchObjectException, OrphanedObjectException {
     checkNonEmpty(promiseHandle, "promiseHandle");
-    Key key = KeyFactory.stringToKey(promiseHandle);
+    Key key = KeyHelper.stringToKey(promiseHandle);
     Slot slot = null;
     // It is possible, though unlikely, that we might be asked to accept a
     // promise before the slot to hold the promise has been saved. We will try 5
@@ -427,7 +430,7 @@ public class PipelineManager {
       while (slot == null) {
         attempts++;
         try {
-          slot = backEnd.querySlot(key, false);
+          slot = getBackEnd().querySlot(key, false);
         } catch (NoSuchObjectException e) {
           if (attempts >= 5) {
             throw new NoSuchObjectException("There is no promise with handle " + promiseHandle);
@@ -450,7 +453,7 @@ public class PipelineManager {
       throw new RuntimeException(
           "Pipeline is fatally corrupted. Slot for promised value has no generatorJobKey: " + slot);
     }
-    JobRecord generatorJob = backEnd.queryJob(generatorJobKey, JobRecord.InflationType.NONE);
+    JobRecord generatorJob = getBackEnd().queryJob(generatorJobKey, JobRecord.InflationType.NONE);
     if (null == generatorJob) {
       throw new RuntimeException("Pipeline is fatally corrupted. "
           + "The generator job for a promised value slot was not found: " + generatorJobKey);
@@ -470,7 +473,7 @@ public class PipelineManager {
     }
     UpdateSpec updateSpec = new UpdateSpec(slot.getRootJobKey());
     registerSlotFilled(updateSpec, generatorJob.getQueueSettings(), slot, value);
-    backEnd.save(updateSpec, generatorJob.getQueueSettings());
+    getBackEnd().save(updateSpec, generatorJob.getQueueSettings());
   }
 
   /**
@@ -537,7 +540,7 @@ public class PipelineManager {
         case DELETE_PIPELINE:
           DeletePipelineTask deletePipelineTask = (DeletePipelineTask) task;
           try {
-            backEnd.deletePipeline(
+            getBackEnd().deletePipeline(
                 deletePipelineTask.getRootJobKey(), deletePipelineTask.shouldForce(), false);
           } catch (Exception e) {
             logger.log(Level.WARNING, "DeletePipeline operation failed.", e);
@@ -557,7 +560,14 @@ public class PipelineManager {
     }
   }
 
-  public static PipelineBackEnd getBackEnd() {
+  public synchronized static PipelineBackEnd getBackEnd() {
+    if (backEnd == null) {
+      if (System.getProperty(ProxyAppEngineTaskQueue.TASKQUEUE_PROXY_URL_PROPERTY) != null) {
+        backEnd = new AppEngineBackEnd(new ProxyAppEngineTaskQueue(), DatastoreOptions.getDefaultInstance().getService());
+      } else {
+        backEnd = new AppEngineBackEnd(new AppEngineTaskQueue(), DatastoreOptions.getDefaultInstance().getService());
+      }
+    }
     return backEnd;
   }
 
@@ -698,7 +708,7 @@ public class PipelineManager {
     runBarrier.setReleased();
     UpdateSpec tempSpec = new UpdateSpec(rootJobKey);
     tempSpec.getOrCreateTransaction("releaseRunBarrier").includeBarrier(runBarrier);
-    backEnd.save(tempSpec, jobRecord.getQueueSettings());
+    getBackEnd().save(tempSpec, jobRecord.getQueueSettings());
 
     State jobState = jobRecord.getState();
     switch (jobState) {
@@ -757,7 +767,7 @@ public class PipelineManager {
     jobRecord.setStartTime(new Date());
     tempSpec = new UpdateSpec(jobRecord.getRootJobKey());
     tempSpec.getNonTransactionalGroup().includeJob(jobRecord);
-    if (!backEnd.saveWithJobStateCheck(
+    if (!getBackEnd().saveWithJobStateCheck(
         tempSpec, jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY)) {
       logger.info("Ignoring runJob request for job " + jobRecord + " which is not in a"
           + " WAITING_TO_RUN or a RETRY state");
@@ -807,7 +817,7 @@ public class PipelineManager {
     jobRecord.setChildGraphGuid(currentRunGUID);
     updateSpec.getFinalTransaction().includeJob(jobRecord);
     updateSpec.getFinalTransaction().includeBarrier(finalizeBarrier);
-    backEnd.saveWithJobStateCheck(
+    getBackEnd().saveWithJobStateCheck(
         updateSpec, jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY);
   }
 
@@ -859,7 +869,7 @@ public class PipelineManager {
     if (jobRecord.isExceptionHandlerSpecified()) {
       executeExceptionHandler(updateSpec, jobRecord, new CancellationException(), true);
     }
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    getBackEnd().save(updateSpec, jobRecord.getQueueSettings());
   }
 
   private static void handleExceptionDuringRun(JobRecord jobRecord, JobRecord rootJobRecord,
@@ -869,10 +879,10 @@ public class PipelineManager {
     if (jobRecord.isCallExceptionHandler()) {
       logger.log(Level.INFO,
           "An exception occurred when attempting to execute exception hander job " + jobRecord
-          + ". ", caughtException);
+              + ". ", caughtException);
     } else {
       logger.log(Level.INFO, "An exception occurred when attempting to run " + jobRecord + ". "
-          + "This was attempt number " + attemptNumber + " of " + maxAttempts + ".",
+              + "This was attempt number " + attemptNumber + " of " + maxAttempts + ".",
           caughtException);
     }
     if (jobRecord.isIgnoreException()) {
@@ -905,7 +915,7 @@ public class PipelineManager {
           updateSpec.getNonTransactionalGroup().includeJob(rootJobRecord);
         }
       }
-      backEnd.save(updateSpec, jobRecord.getQueueSettings());
+      getBackEnd().save(updateSpec, jobRecord.getQueueSettings());
     } else {
       jobRecord.setState(State.RETRY);
       int backoffFactor = jobRecord.getBackoffFactor();
@@ -916,7 +926,7 @@ public class PipelineManager {
           backoffSeconds * (long) Math.pow(backoffFactor, attemptNumber));
       updateSpec.getFinalTransaction().includeJob(jobRecord);
       updateSpec.getFinalTransaction().registerTask(task);
-      backEnd.saveWithJobStateCheck(updateSpec, jobRecord.getQueueSettings(), jobRecord.getKey(),
+      getBackEnd().saveWithJobStateCheck(updateSpec, jobRecord.getQueueSettings(), jobRecord.getKey(),
           State.WAITING_TO_RUN, State.RETRY);
     }
   }
@@ -946,8 +956,8 @@ public class PipelineManager {
       if (!childKey.equals(failedChildKey)) {
         CancelJobTask cancelJobTask = new CancelJobTask(childKey, jobRecord.getQueueSettings());
         try {
-          backEnd.enqueue(cancelJobTask);
-        } catch (TaskAlreadyExistsException e) {
+          getBackEnd().enqueue(cancelJobTask);
+        } catch (TaskAlreadyExistException e) {
           // OK. Some other thread has already enqueued this task.
         }
       }
@@ -978,7 +988,7 @@ public class PipelineManager {
     UpdateSpec updateSpec = new UpdateSpec(rootJobKey);
     cancelChildren(jobRecord, failedChildKey);
     executeExceptionHandler(updateSpec, jobRecord, failedJobRecord.getException(), false);
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    getBackEnd().save(updateSpec, jobRecord.getQueueSettings());
   }
 
   /**
@@ -1032,7 +1042,7 @@ public class PipelineManager {
     finalizeBarrier.setReleased();
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     updateSpec.getOrCreateTransaction("releaseFinalizeBarrier").includeBarrier(finalizeBarrier);
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    getBackEnd().save(updateSpec, jobRecord.getQueueSettings());
 
     updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     // Copy the finalize value to the output slot
@@ -1062,12 +1072,12 @@ public class PipelineManager {
     // Save the job and the output slot
     updateSpec.getNonTransactionalGroup().includeJob(jobRecord);
     updateSpec.getNonTransactionalGroup().includeSlot(outputSlot);
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    getBackEnd().save(updateSpec, jobRecord.getQueueSettings());
 
     // enqueue a HandleSlotFilled task
     HandleSlotFilledTask task =
         new HandleSlotFilledTask(outputSlot.getKey(), jobRecord.getQueueSettings());
-    backEnd.enqueue(task);
+    getBackEnd().enqueue(task);
   }
 
   /**
@@ -1147,8 +1157,8 @@ public class PipelineManager {
               throw new RuntimeException("Unknown barrier type " + barrier.getType());
           }
           try {
-            backEnd.enqueue(task);
-          } catch (TaskAlreadyExistsException e) {
+            getBackEnd().enqueue(task);
+          } catch (TaskAlreadyExistException e) {
             // OK. Some other thread has already enqueued this task.
           }
         }
@@ -1166,7 +1176,7 @@ public class PipelineManager {
     UpdateSpec updateSpec = new UpdateSpec(rootJobKey);
     slot.fill(null);
     updateSpec.getNonTransactionalGroup().includeSlot(slot);
-    backEnd.save(updateSpec, task.getQueueSettings());
+    getBackEnd().save(updateSpec, task.getQueueSettings());
     // re-reading Slot (in handleSlotFilled) is needed (to capture slot fill after this one)
     handleSlotFilled(new HandleSlotFilledTask(slotKey, task.getQueueSettings()));
   }
@@ -1185,7 +1195,7 @@ public class PipelineManager {
    */
   private static JobRecord queryJobOrAbandonTask(Key key, JobRecord.InflationType inflationType) {
     try {
-      return backEnd.queryJob(key, inflationType);
+      return getBackEnd().queryJob(key, inflationType);
     } catch (NoSuchObjectException e) {
       logger.log(
           Level.WARNING, "Cannot find some part of the job: " + key + ". Ignoring the task.", e);
@@ -1213,7 +1223,7 @@ public class PipelineManager {
    */
   private static Slot querySlotOrAbandonTask(Key key, boolean inflate) {
     try {
-      return backEnd.querySlot(key, inflate);
+      return getBackEnd().querySlot(key, inflate);
     } catch (NoSuchObjectException e) {
       logger.log(Level.WARNING, "Cannot find the slot: " + key + ". Ignoring the task.", e);
       throw new AbandonTaskException();
@@ -1228,7 +1238,7 @@ public class PipelineManager {
    */
   private static void handleFanoutTaskOrAbandonTask(FanoutTask fanoutTask) {
     try {
-      backEnd.handleFanoutTask(fanoutTask);
+      getBackEnd().handleFanoutTask(fanoutTask);
     } catch (NoSuchObjectException e) {
       logger.log(Level.SEVERE, "Pipeline is fatally corrupted. Fanout task record not found", e);
       throw new AbandonTaskException();
@@ -1242,7 +1252,7 @@ public class PipelineManager {
       UpdateSpec spec, JobRecord generatorJobRecord, long delaySec, Slot slot) {
     Key rootKey = generatorJobRecord.getRootJobKey();
     QueueSettings queueSettings = generatorJobRecord.getQueueSettings();
-    DelayedSlotFillTask task = new DelayedSlotFillTask(slot, delaySec, rootKey , queueSettings);
+    DelayedSlotFillTask task = new DelayedSlotFillTask(slot, delaySec, rootKey, queueSettings);
     spec.getFinalTransaction().registerTask(task);
   }
 }

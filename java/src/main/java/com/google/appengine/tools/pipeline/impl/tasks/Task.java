@@ -39,7 +39,6 @@ import java.util.Set;
  * relevant parameters from the request, its name and then invoke
  * {@link #fromProperties(String, Properties)}.
  *
- *
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public abstract class Task {
@@ -57,28 +56,6 @@ public abstract class Task {
       @Override
       String getProperty(Task task) {
         return task.getQueueSettings().getOnBackend();
-      }
-    },
-    ON_MODULE {
-      @Override
-      void setProperty(Task task, String value) {
-        task.getQueueSettings().setOnModule(value);
-      }
-
-      @Override
-      String getProperty(Task task) {
-        return task.getQueueSettings().getOnModule();
-      }
-    },
-    MODULE_VERSION {
-      @Override
-      void setProperty(Task task, String value) {
-        task.getQueueSettings().setModuleVersion(value);
-      }
-
-      @Override
-      String getProperty(Task task) {
-        return task.getQueueSettings().getModuleVersion();
       }
     },
     ON_QUEUE {

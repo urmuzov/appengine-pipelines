@@ -14,34 +14,9 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import static com.google.appengine.api.datastore.Query.FilterOperator.EQUAL;
-import static com.google.appengine.api.datastore.Query.FilterOperator.GREATER_THAN;
-import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
-import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
-import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
-
-import com.google.appengine.api.datastore.Blob;
-import com.google.appengine.api.datastore.Cursor;
-import com.google.appengine.api.datastore.DatastoreFailureException;
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.DatastoreTimeoutException;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.EntityNotFoundException;
-import com.google.appengine.api.datastore.FetchOptions;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.PreparedQuery;
-import com.google.appengine.api.datastore.PropertyProjection;
-import com.google.appengine.api.datastore.Query;
-import com.google.appengine.api.datastore.Query.Filter;
-import com.google.appengine.api.datastore.Query.FilterPredicate;
-import com.google.appengine.api.datastore.QueryResultIterator;
-import com.google.appengine.api.datastore.Transaction;
-import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.NonRetriableException;
-import com.google.appengine.tools.cloudstorage.RetriesExhaustedException;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
-import com.google.appengine.tools.cloudstorage.RetryParams;
+import com.gigware.deferred.DeferredTask;
+import com.google.api.core.NanoClock;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
@@ -49,6 +24,7 @@ import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
 import com.google.appengine.tools.pipeline.impl.model.FanoutTaskRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.model.PipelineModelObject;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.model.ShardedValue;
@@ -58,7 +34,35 @@ import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.ExceptionHandler;
+import com.google.cloud.RetryHelper;
+import com.google.cloud.datastore.Blob;
+import com.google.cloud.datastore.BlobValue;
+import com.google.cloud.datastore.Cursor;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.EntityQuery;
+import com.google.cloud.datastore.FullEntity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.KeyQuery;
+import com.google.cloud.datastore.KeyValue;
+import com.google.cloud.datastore.ListValue;
+import com.google.cloud.datastore.NullValue;
+import com.google.cloud.datastore.ProjectionEntity;
+import com.google.cloud.datastore.ProjectionEntityQuery;
+import com.google.cloud.datastore.Query;
+import com.google.cloud.datastore.QueryResults;
+import com.google.cloud.datastore.StructuredQuery;
+import com.google.cloud.datastore.Transaction;
+import com.google.cloud.datastore.Value;
+import com.google.common.base.Function;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.datastore.v1.client.DatastoreException;
+import org.joda.time.Duration;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,35 +80,38 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
+import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
+import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
+import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
+
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
 public class AppEngineBackEnd implements PipelineBackEnd {
 
-  private static final RetryParams RETRY_PARAMS = new RetryParams.Builder()
-      .retryDelayBackoffFactor(2)
-      .initialRetryDelayMillis(300)
-      .maxRetryDelayMillis(5000)
-      .retryMinAttempts(5)
-      .retryMaxAttempts(5)
+  public static final RetrySettings RETRY_PARAMS = RetrySettings.newBuilder()
+      .setRetryDelayMultiplier(2)
+      .setInitialRetryDelay(Duration.millis(300L))
+      .setMaxRetryDelay(Duration.millis(5000L))
+      .setMaxAttempts(5)
+      .setTotalTimeout(Duration.standardSeconds(120))
+      .setInitialRpcTimeout(Duration.millis(300L))
+      .setRpcTimeoutMultiplier(2.)
+      .setMaxRpcTimeout(Duration.standardSeconds(3))
       .build();
-
-  private static final ExceptionHandler EXCEPTION_HANDLER = new ExceptionHandler.Builder().retryOn(
-      ConcurrentModificationException.class, DatastoreTimeoutException.class,
-      DatastoreFailureException.class)
-      .abortOn(EntityNotFoundException.class, NoSuchObjectException.class).build();
-
+  private static final ExceptionHandler EXCEPTION_HANDLER = ExceptionHandler.newBuilder().retryOn(
+      ConcurrentModificationException.class, DatastoreException.class)
+      .abortOn(NoSuchObjectException.class).build();
   private static final Logger logger = Logger.getLogger(AppEngineBackEnd.class.getName());
 
   private static final int MAX_BLOB_BYTE_SIZE = 1000000;
+  private final PipelineTaskQueue taskQueue;
+  private final Datastore dataStore;
 
-  private final DatastoreService dataStore;
-  private final AppEngineTaskQueue taskQueue;
-
-  public AppEngineBackEnd() {
-    dataStore = DatastoreServiceFactory.getDatastoreService();
-    taskQueue = new AppEngineTaskQueue();
+  public AppEngineBackEnd(final PipelineTaskQueue taskQueue, final Datastore dataStore) {
+    this.taskQueue = taskQueue;
+    this.dataStore = dataStore;
   }
 
   private void putAll(Collection<? extends PipelineModelObject> objects) {
@@ -116,7 +123,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
       logger.finest("Storing: " + x);
       entityList.add(x.toEntity());
     }
-    dataStore.put(entityList);
+    dataStore.put(entityList.toArray(new FullEntity[entityList.size()]));
   }
 
   private void saveAll(UpdateSpec.Group group) {
@@ -129,13 +136,12 @@ public class AppEngineBackEnd implements PipelineBackEnd {
 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
       QueueSettings queueSettings, Key rootJobKey, Key jobKey, JobRecord.State... expectedStates) {
-    Transaction transaction = dataStore.beginTransaction();
+    Transaction transaction = dataStore.newTransaction();
     try {
       if (jobKey != null && expectedStates != null) {
-        Entity entity = null;
-        try {
-          entity = dataStore.get(jobKey);
-        } catch (EntityNotFoundException e) {
+        Entity entity;
+        entity = dataStore.get(jobKey);
+        if (entity == null) {
           throw new RuntimeException(
               "Fatal Pipeline corruption error. No JobRecord found with key = " + jobKey);
         }
@@ -167,7 +173,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
           // the FanoutTask is enqueued. If the put succeeds but the
           // enqueue fails then the FanoutTaskRecord is orphaned. But
           // the Pipeline is still consistent.
-          dataStore.put(null, ftRecord.toEntity());
+          dataStore.put(ftRecord.toEntity());
           FanoutTask fannoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
           taskQueue.enqueue(fannoutTask);
         }
@@ -196,8 +202,8 @@ public class AppEngineBackEnd implements PipelineBackEnd {
 
   private <R> R tryFiveTimes(final Operation<R> operation) {
     try {
-      return RetryHelper.runWithRetries(operation, RETRY_PARAMS, EXCEPTION_HANDLER);
-    } catch (RetriesExhaustedException|NonRetriableException e) {
+      return RetryHelper.runWithRetries(operation, RETRY_PARAMS, EXCEPTION_HANDLER, NanoClock.getDefaultClock());
+    } catch (RetryHelper.RetryHelperException e) {
       if (e.getCause() instanceof RuntimeException) {
         logger.info(e.getCause().getMessage() + " during " + operation.getName()
             + " throwing after multiple attempts ");
@@ -209,7 +215,12 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   }
 
   @Override
-  public void enqueue(Task task) {
+  public void enqueueDeferred(final String queueName, final DeferredTask deferredTask) {
+    taskQueue.enqueueDeferred(queueName, deferredTask);
+  }
+
+  @Override
+  public void enqueue(Task task) throws TaskAlreadyExistException {
     taskQueue.enqueue(task);
   }
 
@@ -361,10 +372,10 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   }
 
   @Override
-  public Object serializeValue(PipelineModelObject model, Object value) throws IOException {
+  public Value serializeValue(PipelineModelObject model, Object value) throws IOException {
     byte[] bytes = SerializationUtils.serialize(value);
     if (bytes.length < MAX_BLOB_BYTE_SIZE) {
-      return new Blob(bytes);
+      return BlobValue.newBuilder(Blob.copyFrom(bytes)).setExcludeFromIndexes(true).build();
     }
     int shardId = 0;
     int offset = 0;
@@ -375,32 +386,40 @@ public class AppEngineBackEnd implements PipelineBackEnd {
       offset = limit;
       shardedValues.add(new ShardedValue(model, shardId++, chunk).toEntity());
     }
-    return tryFiveTimes(new Operation<List<Key>>("serializeValue") {
+    List<Key> keys = tryFiveTimes(new Operation<List<Key>>("serializeValue") {
       @Override
       public List<Key> call() {
-        Transaction tx = dataStore.beginTransaction();
-        List<Key> keys;
+        //emulate Transaction tx = dataStore.newTransaction();
+        List<Key> keys = Lists.newArrayList();
         try {
-          keys = dataStore.put(tx, shardedValues);
-          tx.commit();
-        } finally {
-          if (tx.isActive()) {
-            tx.rollback();
+          for (Entity entity : shardedValues) {
+            keys.add(dataStore.put(entity).getKey());
           }
+        } catch (com.google.cloud.datastore.DatastoreException e) {
+          dataStore.delete(keys.toArray(new Key[keys.size()]));
+          throw e;
         }
         return keys;
       }
     });
+    return ListValue.of(KeyHelper.convertKeyList(keys));
   }
 
   @Override
-  public Object deserializeValue(PipelineModelObject model, Object serializedVersion)
+  public Object deserializeValue(PipelineModelObject model, Value serializedVersion)
       throws IOException {
-    if (serializedVersion instanceof Blob) {
-      return SerializationUtils.deserialize(((Blob) serializedVersion).getBytes());
-    } else {
+    if (serializedVersion instanceof BlobValue) {
+      return SerializationUtils.deserialize((((BlobValue) serializedVersion).get()).toByteArray());
+    } else if (serializedVersion instanceof ListValue) {
       @SuppressWarnings("unchecked")
-      Collection<Key> keys = (Collection<Key>) serializedVersion;
+      Collection<KeyValue> keyValues = (Collection<KeyValue>) ((ListValue) serializedVersion).get();
+      Collection<Key> keys = Collections2.transform(keyValues, new Function<KeyValue, Key>() {
+        @Nullable
+        @Override
+        public Key apply(@Nullable final KeyValue input) {
+          return input.get();
+        }
+      });
       Map<Key, Entity> entities = getEntities("deserializeValue", keys);
       ShardedValue[] shardedValues = new ShardedValue[entities.size()];
       int totalSize = 0;
@@ -419,14 +438,23 @@ public class AppEngineBackEnd implements PipelineBackEnd {
         offset += shardBytes.length;
       }
       return SerializationUtils.deserialize(totalBytes);
+    } else {
+      throw new IllegalArgumentException("Unexpected type of deserialization:" + serializedVersion.getClass());
     }
+
   }
 
   private Map<Key, Entity> getEntities(String logString, final Collection<Key> keys) {
     Map<Key, Entity> result = tryFiveTimes(new Operation<Map<Key, Entity>>(logString) {
       @Override
       public Map<Key, Entity> call() {
-        return dataStore.get(null, keys);
+        Map<Key, Entity> out = Maps.newHashMap();
+        Iterator<Entity> iterator = dataStore.get(keys);
+        while (iterator.hasNext()) {
+          Entity entity = iterator.next();
+          out.put(entity.getKey(), entity);
+        }
+        return out;
       }
     });
     if (keys.size() != result.size()) {
@@ -439,19 +467,18 @@ public class AppEngineBackEnd implements PipelineBackEnd {
 
   private Entity getEntity(String logString, final Key key) throws NoSuchObjectException {
     try {
-      return tryFiveTimes(new Operation<Entity>(logString) {
+      Entity entity = tryFiveTimes(new Operation<Entity>(logString) {
         @Override
-        public Entity call() throws EntityNotFoundException  {
-            return dataStore.get(null, key);
+        public Entity call() {
+          return dataStore.get(key);
         }
       });
-    } catch (NonRetriableException|RetriesExhaustedException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof EntityNotFoundException) {
-        throw new NoSuchObjectException(key.toString(), cause);
-      } else {
-        throw e;
+      if (entity == null) {
+        throw new NoSuchObjectException(KeyHelper.keyToString(key));
       }
+      return entity;
+    } catch (RetryHelper.RetryHelperException e) {
+      throw e;
     }
   }
 
@@ -466,68 +493,66 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   }
 
   public List<Entity> queryAll(final String kind, final Key rootJobKey) {
-    Query query = new Query(kind);
-    query.setFilter(new FilterPredicate(ROOT_JOB_KEY_PROPERTY, EQUAL, rootJobKey));
-    final PreparedQuery preparedQuery = dataStore.prepare(query);
-    final FetchOptions options = FetchOptions.Builder.withChunkSize(500);
-    return tryFiveTimes(new Operation<List<Entity>>("queryFullPipeline") {
-      @Override
-      public List<Entity> call() {
-        return preparedQuery.asList(options);
-      }
-    });
+    EntityQuery.Builder query = Query.newEntityQueryBuilder();
+    query.setKind(kind);
+    query.setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_KEY_PROPERTY, rootJobKey));
+    final QueryResults<Entity> preparedQuery = dataStore.run(query.build());
+    List<Entity> out = Lists.newArrayList();
+    while (preparedQuery.hasNext()) {
+      out.add(preparedQuery.next());
+    }
+    return out;
   }
 
   @Override
   public Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(String classFilter,
       String cursor, final int limit) {
-    Query query = new Query(JobRecord.DATA_STORE_KIND);
-    Filter filter = classFilter == null || classFilter.isEmpty() ? new FilterPredicate(
-        ROOT_JOB_DISPLAY_NAME, GREATER_THAN, null)
-        : new FilterPredicate(ROOT_JOB_DISPLAY_NAME, EQUAL, classFilter);
+    final EntityQuery.Builder query = Query.newEntityQueryBuilder();
+    query.setKind(JobRecord.DATA_STORE_KIND);
+
+    StructuredQuery.Filter filter = classFilter == null || classFilter.isEmpty() ?
+        StructuredQuery.PropertyFilter.gt(ROOT_JOB_DISPLAY_NAME, NullValue.of())
+        : StructuredQuery.PropertyFilter.eq(ROOT_JOB_DISPLAY_NAME, classFilter);
     query.setFilter(filter);
-    final PreparedQuery preparedQuery = dataStore.prepare(query);
-    final FetchOptions fetchOptions = FetchOptions.Builder.withDefaults();
     if (limit > 0) {
-      fetchOptions.limit(limit + 1);
+      query.setLimit(limit + 1);
     }
     if (cursor != null) {
-      fetchOptions.startCursor(Cursor.fromWebSafeString(cursor));
+      query.setStartCursor(Cursor.fromUrlSafe(cursor));
     }
     return tryFiveTimes(
         new Operation<Pair<? extends Iterable<JobRecord>, String>>("queryRootPipelines") {
           @Override
           public Pair<? extends Iterable<JobRecord>, String> call() {
-            QueryResultIterator<Entity> entities =
-                preparedQuery.asQueryResultIterable(fetchOptions).iterator();
+            QueryResults<Entity> entities = dataStore.run(query.build());
             Cursor dsCursor = null;
             List<JobRecord> roots = new LinkedList<>();
             while (entities.hasNext()) {
               if (limit > 0 && roots.size() >= limit) {
-                dsCursor = entities.getCursor();
+                dsCursor = entities.getCursorAfter();
                 break;
               }
               JobRecord jobRecord = new JobRecord(entities.next());
               roots.add(jobRecord);
             }
-            return Pair.of(roots, dsCursor == null ? null : dsCursor.toWebSafeString());
+            return Pair.of(roots, dsCursor == null ? null : dsCursor.toUrlSafe());
           }
         });
   }
 
   @Override
   public Set<String> getRootPipelinesDisplayName() {
-    Query query = new Query(JobRecord.DATA_STORE_KIND);
-    query.addProjection(
-        new PropertyProjection(JobRecord.ROOT_JOB_DISPLAY_NAME, String.class));
-    query.setDistinct(true);
-    final PreparedQuery preparedQuery = dataStore.prepare(query);
+    final ProjectionEntityQuery.Builder query = Query.newProjectionEntityQueryBuilder();
+    query.setKind(JobRecord.DATA_STORE_KIND);
+    query.addProjection(JobRecord.ROOT_JOB_DISPLAY_NAME);
+    query.setDistinctOn(JobRecord.ROOT_JOB_DISPLAY_NAME);
     return tryFiveTimes(new Operation<Set<String>>("getRootPipelinesDisplayName") {
       @Override
       public Set<String> call() {
         Set<String> pipelines = new LinkedHashSet<>();
-        for (Entity entity : preparedQuery.asIterable()) {
-          pipelines.add((String) entity.getProperty(JobRecord.ROOT_JOB_DISPLAY_NAME));
+        QueryResults<ProjectionEntity> entityQueryResults = dataStore.run(query.build());
+        while (entityQueryResults.hasNext()) {
+          pipelines.add(entityQueryResults.next().getString(JobRecord.ROOT_JOB_DISPLAY_NAME));
         }
         return pipelines;
       }
@@ -564,20 +589,21 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   private void deleteAll(final String kind, final Key rootJobKey) {
     logger.info("Deleting all " + kind + " with rootJobKey=" + rootJobKey);
     final int chunkSize = 100;
-    final FetchOptions fetchOptions = FetchOptions.Builder.withChunkSize(chunkSize);
-    final PreparedQuery preparedQuery = dataStore.prepare(new Query(kind).setKeysOnly().setFilter(
-        new FilterPredicate(ROOT_JOB_KEY_PROPERTY, EQUAL, rootJobKey)));
+    final KeyQuery.Builder keyQuery = Query.newKeyQueryBuilder()
+        .setKind(kind)
+        .setFilter(KeyQuery.PropertyFilter.eq(ROOT_JOB_KEY_PROPERTY, rootJobKey));
+
     tryFiveTimes(new Operation<Void>("delete") {
       @Override
       public Void call() {
-        Iterator<Entity> iter = preparedQuery.asIterator(fetchOptions);
+        QueryResults<Key> iter = dataStore.run(keyQuery.build());
         while (iter.hasNext()) {
           ArrayList<Key> keys = new ArrayList<>(chunkSize);
           for (int i = 0; i < chunkSize && iter.hasNext(); i++) {
-            keys.add(iter.next().getKey());
+            keys.add(iter.next());
           }
           logger.info("Deleting  " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
-          dataStore.delete(null, keys);
+          dataStore.delete(keys.toArray(new Key[keys.size()]));
         }
         return null;
       }

@@ -14,24 +14,22 @@
 
 package com.google.appengine.tools.pipeline;
 
-import static com.google.appengine.tools.pipeline.Job.immediate;
-import static com.google.appengine.tools.pipeline.Job.waitFor;
-
-import com.google.appengine.api.taskqueue.DeferredTask;
-import com.google.appengine.api.taskqueue.DeferredTaskContext;
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.RetryOptions;
-import com.google.appengine.api.taskqueue.TaskOptions;
+import com.gigware.cloudmine.appengine.model.RetryOptions;
+import com.gigware.cloudmine.appengine.model.TaskOptions;
+import com.gigware.deferred.DeferredTask;
+import com.gigware.deferred.DeferredTaskContext;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.Serializable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.servlet.http.HttpServletRequest;
+import static com.google.appengine.tools.pipeline.Job.immediate;
+import static com.google.appengine.tools.pipeline.Job.waitFor;
 
 /**
  * A collection of common jobs and utilities.
@@ -43,7 +41,6 @@ public class Jobs {
   private Jobs() {
     // A utility class
   }
-
 
   /**
    * An helper job to transform a {@link Value} result.
@@ -122,19 +119,18 @@ public class Jobs {
         private static final long serialVersionUID = -7510918963650055768L;
 
         @Override
-        public void run() {
+        public void run(HttpServletRequest request) {
           PipelineService service = PipelineServiceFactory.newPipelineService();
           try {
             service.deletePipelineRecords(key);
             log.info("Deleted pipeline: " + key);
           } catch (IllegalStateException e) {
             log.info("Failed to delete pipeline: " + key);
-            HttpServletRequest request = DeferredTaskContext.getCurrentRequest();
             if (request != null) {
               int attempts = request.getIntHeader("X-AppEngine-TaskExecutionCount");
               if (attempts <= 5) {
                 log.info("Request to retry deferred task #" + attempts);
-                DeferredTaskContext.markForRetry();
+                DeferredTaskContext.markForRetry(request);
                 return;
               }
             }
@@ -149,10 +145,7 @@ public class Jobs {
           }
         }
       };
-      String queueName = Optional.fromNullable(getOnQueue()).or("default");
-      Queue queue = QueueFactory.getQueue(queueName);
-      queue.add(TaskOptions.Builder.withPayload(deleteRecordsTask).countdownMillis(10000)
-          .retryOptions(RetryOptions.Builder.withMinBackoffSeconds(2).maxBackoffSeconds(20)));
+      PipelineManager.getBackEnd().enqueueDeferred(getOnQueue(), deleteRecordsTask);
       return immediate(value);
     }
   }

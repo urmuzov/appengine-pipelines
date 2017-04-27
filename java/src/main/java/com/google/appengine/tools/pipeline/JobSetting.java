@@ -16,7 +16,6 @@ package com.google.appengine.tools.pipeline;
 
 import java.io.Serializable;
 
-
 /**
  * A setting for specifying to the framework some aspect of a Job's execution.
  *
@@ -151,33 +150,6 @@ public interface JobSetting extends Serializable {
 
     public OnBackend(String backend) {
       super(backend);
-    }
-  }
-
-  /**
-   * A setting for specifying what module to run a job on.
-   */
-  final class OnModule extends StringValuedSetting {
-
-    private static final long serialVersionUID = 3877411731586475273L;
-    public static final String DEFAULT = null;
-
-    public OnModule(String module) {
-      super(module);
-    }
-  }
-
-  /**
-   * A setting for specifying what version to run a job on. This value is only
-   * considered when OnModule is specified.
-   */
-  final class OnModuleVersion extends StringValuedSetting {
-
-    private static final long serialVersionUID = 3342378839355476626L;
-    public static final String DEFAULT = null;
-
-    public OnModuleVersion(String moduleVersion) {
-      super(moduleVersion);
     }
   }
 

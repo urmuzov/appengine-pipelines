@@ -14,10 +14,9 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -102,7 +101,7 @@ public class Barrier extends PipelineModelObject {
   }
 
   public static Barrier dummyInstanceForTesting() {
-    Key dummyKey = KeyFactory.createKey("dummy", "dummy");
+    Key dummyKey = KeyHelper.createKey("dummy", "dummy");
     return new Barrier(Type.RUN, dummyKey, dummyKey, dummyKey, "abc");
   }
 
@@ -113,22 +112,22 @@ public class Barrier extends PipelineModelObject {
 
   public Barrier(Entity entity) {
     super(entity);
-    jobKey = (Key) entity.getProperty(JOB_KEY_PROPERTY);
-    type = Type.valueOf((String) entity.getProperty(TYPE_PROPERTY));
-    released = (Boolean) entity.getProperty(RELEASED_PROPERTY);
+    jobKey = entity.getKey(JOB_KEY_PROPERTY);
+    type = Type.valueOf(entity.getString(TYPE_PROPERTY));
+    released = entity.getBoolean(RELEASED_PROPERTY);
     waitingOnKeys = getListProperty(WAITING_ON_KEYS_PROPERTY, entity);
     waitingOnGroupSizes = getListProperty(WAITING_ON_GROUP_SIZES_PROPERTY, entity);
   }
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
-    entity.setProperty(JOB_KEY_PROPERTY, jobKey);
-    entity.setUnindexedProperty(TYPE_PROPERTY, type.toString());
-    entity.setUnindexedProperty(RELEASED_PROPERTY, released);
-    entity.setUnindexedProperty(WAITING_ON_KEYS_PROPERTY, waitingOnKeys);
-    entity.setUnindexedProperty(WAITING_ON_GROUP_SIZES_PROPERTY, waitingOnGroupSizes);
-    return entity;
+    Entity.Builder entity = toProtoEntity();
+    entity.set(JOB_KEY_PROPERTY, jobKey);
+    entity.set(TYPE_PROPERTY, type.toString());
+    entity.set(RELEASED_PROPERTY, released);
+    entity.set(WAITING_ON_KEYS_PROPERTY, KeyHelper.convertKeyList(waitingOnKeys));
+    entity.set(WAITING_ON_GROUP_SIZES_PROPERTY, KeyHelper.convertLongList(waitingOnGroupSizes));
+    return entity.build();
   }
 
   @Override

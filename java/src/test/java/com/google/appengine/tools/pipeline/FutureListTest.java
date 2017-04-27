@@ -14,6 +14,9 @@
 
 package com.google.appengine.tools.pipeline;
 
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,28 +27,30 @@ import java.util.List;
  * the child job, ReturnsListJob.
  */
 public class FutureListTest extends PipelineTest {
-
+  @Test
   public void testFutureList() throws Exception {
     PipelineService service = PipelineServiceFactory.newPipelineService();
     String pipelineId = service.startNewPipeline(new SumsListJob1());
     Integer sum = waitForJobToComplete(pipelineId);
-    assertEquals(21, sum.intValue());
+    Assert.assertEquals(21, sum.intValue());
   }
 
+  @Test
   public void testReturnFutureList() throws Exception {
     PipelineService service = PipelineServiceFactory.newPipelineService();
     String pipelineId = service.startNewPipeline(new SumsListJob2());
     Integer sum = waitForJobToComplete(pipelineId);
-    assertEquals(21, sum.intValue());
+    Assert.assertEquals(21, sum.intValue());
   }
 
   // Thanks to Ronoaldo José de Lana Pereira for
   // suggesting this.
+  @Test
   public void testEmptyFutureList() throws Exception {
     PipelineService service = PipelineServiceFactory.newPipelineService();
     String pipelineId = service.startNewPipeline(new SumsEmptyListJob());
     Integer sum = waitForJobToComplete(pipelineId);
-    assertEquals(0, sum.intValue());
+    Assert.assertEquals(0, sum.intValue());
   }
 
   /**
@@ -95,7 +100,7 @@ public class FutureListTest extends PipelineTest {
     public Value<List<Integer>> run() {
       Returns5Job returns5Job = new Returns5Job();
       return new FutureList<>(
-          futureCall(returns5Job), immediate(7), futureCall(returns5Job), immediate(4));
+              futureCall(returns5Job), immediate(7), futureCall(returns5Job), immediate(4));
     }
   }
 

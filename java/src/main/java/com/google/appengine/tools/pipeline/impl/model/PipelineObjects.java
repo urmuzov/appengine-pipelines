@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Key;
+import com.google.cloud.datastore.Key;
 
 import java.util.HashMap;
 import java.util.Iterator;

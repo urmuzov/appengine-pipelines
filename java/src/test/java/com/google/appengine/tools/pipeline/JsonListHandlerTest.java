@@ -14,14 +14,15 @@
 
 package com.google.appengine.tools.pipeline;
 
-import static org.mockito.Mockito.when;
-
 import com.google.appengine.tools.pipeline.impl.servlets.JsonListHandler;
 import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
-
+import org.junit.Assert;
+import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
@@ -29,19 +30,59 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import static org.mockito.Mockito.when;
 
 /**
  * Test for {@link JsonListHandlerTest}.
  */
 public class JsonListHandlerTest extends PipelineTest {
 
-
-  @Mock private HttpServletRequest request;
-  @Mock private HttpServletResponse response;
   private final StringWriter output = new StringWriter();
+  @Mock
+  private HttpServletRequest request;
+  @Mock
+  private HttpServletResponse response;
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp();
+    MockitoAnnotations.initMocks(this);
+    when(response.getWriter()).thenReturn(new PrintWriter(output));
+  }
+
+  @Test
+  public void testHandlerNoResults() throws Exception {
+    JsonListHandler.doGet(request, response);
+    Assert.assertEquals("{\"pipelines\": []}", output.toString());
+  }
+
+  @Test
+  public void testHandlerWithResults() throws Exception {
+    PipelineService service = PipelineServiceFactory.newPipelineService();
+    String pipelineId1 = service.startNewPipeline(new Main1Job());
+    String pipelineId2 = service.startNewPipeline(new Main2Job(false));
+    String pipelineId3 = service.startNewPipeline(new Main2Job(true),
+            new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
+    String helloWorld = (String) waitForJobToComplete(pipelineId1);
+    Assert.assertEquals("hello world", helloWorld);
+    String hiThere = (String) waitForJobToComplete(pipelineId2);
+    Assert.assertEquals("hi there", hiThere);
+    String bla = (String) waitForJobToComplete(pipelineId3);
+    Assert.assertEquals("bla", bla);
+    JsonListHandler.doGet(request, response);
+    Map<String, Object> results = (Map<String, Object>) JsonUtils.fromJson(output.toString());
+    Assert.assertEquals(1, results.size());
+    List<Map<String, Object>> pipelines = (List<Map<String, Object>>) results.get("pipelines");
+    Assert.assertEquals(3, pipelines.size());
+    Map<String, String> pipelineIdToClass = new HashMap<>();
+    for (Map<String, Object> pipeline : pipelines) {
+      pipelineIdToClass.put(
+              (String) pipeline.get("pipelineId"), (String) pipeline.get("classPath"));
+    }
+    Assert.assertEquals(Main1Job.class.getName(), pipelineIdToClass.get(pipelineId1));
+    Assert.assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId2));
+    Assert.assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId3));
+  }
 
   @SuppressWarnings("serial")
   private static class Main1Job extends Job0<String> {
@@ -95,44 +136,5 @@ public class JsonListHandlerTest extends PipelineTest {
     public Value<String> run(T obj) {
       return immediate(obj == null ? "null" : obj.toString());
     }
-  }
-
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
-    MockitoAnnotations.initMocks(this);
-    when(response.getWriter()).thenReturn(new PrintWriter(output));
-  }
-
-  public void testHandlerNoResults() throws Exception {
-    JsonListHandler.doGet(request, response);
-    assertEquals("{\"pipelines\": []}", output.toString());
-  }
-
-  public void testHandlerWithResults() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId1 = service.startNewPipeline(new Main1Job());
-    String pipelineId2 = service.startNewPipeline(new Main2Job(false));
-    String pipelineId3 = service.startNewPipeline(new Main2Job(true),
-        new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
-    String helloWorld = (String) waitForJobToComplete(pipelineId1);
-    assertEquals("hello world", helloWorld);
-    String hiThere = (String) waitForJobToComplete(pipelineId2);
-    assertEquals("hi there", hiThere);
-    String bla = (String) waitForJobToComplete(pipelineId3);
-    assertEquals("bla", bla);
-    JsonListHandler.doGet(request, response);
-    Map<String, Object> results = (Map<String, Object>) JsonUtils.fromJson(output.toString());
-    assertEquals(1, results.size());
-    List<Map<String, Object>> pipelines = (List<Map<String, Object>>) results.get("pipelines");
-    assertEquals(3, pipelines.size());
-    Map<String, String> pipelineIdToClass = new HashMap<>();
-    for (Map<String, Object> pipeline : pipelines) {
-      pipelineIdToClass.put(
-          (String) pipeline.get("pipelineId"), (String) pipeline.get("classPath"));
-    }
-    assertEquals(Main1Job.class.getName(), pipelineIdToClass.get(pipelineId1));
-    assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId2));
-    assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId3));
   }
 }

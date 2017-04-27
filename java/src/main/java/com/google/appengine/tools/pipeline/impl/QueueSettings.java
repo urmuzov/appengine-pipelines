@@ -1,6 +1,5 @@
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.api.taskqueue.RetryOptions;
 import com.google.common.base.MoreObjects;
 
 /**
@@ -11,8 +10,6 @@ import com.google.common.base.MoreObjects;
 public final class QueueSettings implements Cloneable {
 
   private String onBackend;
-  private String onModule;
-  private String moduleVersion;
   private String onQueue;
   private Long queueRetryTaskRetryLimit;
   private Long queueRetryTaskAgeLimitSeconds;
@@ -26,12 +23,8 @@ public final class QueueSettings implements Cloneable {
    * Note, delay value is not being merged. moduleVersion is only copied if onModule is copied.
    */
   public QueueSettings merge(QueueSettings other) {
-    if (onBackend == null && onModule == null) {
+    if (onBackend == null) {
       onBackend = other.getOnBackend();
-    }
-    if (onModule == null && onBackend == null) {
-      onModule = other.getOnModule();
-      moduleVersion = other.getModuleVersion();
     }
     if (onQueue == null) {
       onQueue = other.getOnQueue();
@@ -55,36 +48,12 @@ public final class QueueSettings implements Cloneable {
   }
 
   public QueueSettings setOnBackend(String onBackend) {
-    if (onBackend != null && onModule != null) {
-      throw new IllegalStateException("OnModule and OnBackend cannot be combined");
-    }
     this.onBackend = onBackend;
     return this;
   }
 
   public String getOnBackend() {
     return onBackend;
-  }
-
-  public QueueSettings setOnModule(String onModule) {
-    if (onModule != null && onBackend != null) {
-      throw new IllegalStateException("OnModule and OnBackend cannot be combined");
-    }
-    this.onModule = onModule;
-    return this;
-  }
-
-  public String getOnModule() {
-    return onModule;
-  }
-
-  public QueueSettings setModuleVersion(String moduleVersion) {
-    this.moduleVersion = moduleVersion;
-    return this;
-  }
-
-  public String getModuleVersion() {
-    return moduleVersion;
   }
 
   public QueueSettings setOnQueue(String onQueue) {
@@ -162,8 +131,6 @@ public final class QueueSettings implements Cloneable {
   public String toString() {
     return MoreObjects.toStringHelper(this)
             .add("onBackend", onBackend)
-            .add("onModule", onModule)
-            .add("moduleVersion", moduleVersion)
             .add("onQueue", onQueue)
             .add("queueRetryTaskRetryLimit", queueRetryTaskRetryLimit)
             .add("queueRetryTaskAgeLimitSeconds", queueRetryTaskAgeLimitSeconds)

@@ -14,19 +14,28 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.gigware.deferred.DeferredTask;
+import com.gigware.deferred.DeferredTaskContext;
+import com.google.api.core.NanoClock;
 import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
-import com.google.appengine.api.taskqueue.*;
-import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
-import com.google.appengine.tools.cloudstorage.RetryParams;
+import com.google.appengine.api.taskqueue.Queue;
+import com.google.appengine.api.taskqueue.QueueConstants;
+import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.RetryOptions;
+import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
+import com.google.appengine.api.taskqueue.TaskHandle;
+import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.ObjRefTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.apphosting.api.ApiProxy;
+import com.google.cloud.ExceptionHandler;
+import com.google.cloud.RetryHelper;
+import com.google.common.base.Optional;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,7 +61,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   static final int MAX_TASKS_PER_ENQUEUE = QueueConstants.maxTasksPerAdd();
 
   private static final ExceptionHandler MODULES_EXCEPTION_HANDLER =
-      new ExceptionHandler.Builder().retryOn(ModulesException.class).build();
+      ExceptionHandler.newBuilder().retryOn(ModulesException.class).build();
 
   @Override
   public void enqueue(Task task) {
@@ -149,15 +158,15 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
         @Override
         public String call() {
           ModulesService service = ModulesServiceFactory.getModulesService();
-          String module = queueSettings.getOnModule();
-          String version = queueSettings.getModuleVersion();
+          String module = null;
+          String version = null;
           if (module == null) {
             module = service.getCurrentModule();
             version = service.getCurrentVersion();
           }
           return service.getVersionHostname(module, version);
         }
-      }, RetryParams.getDefaultInstance(), MODULES_EXCEPTION_HANDLER);
+      }, AppEngineBackEnd.RETRY_PARAMS, MODULES_EXCEPTION_HANDLER, NanoClock.getDefaultClock());
       taskOptions.header("Host", versionHostname);
     }
 
@@ -203,4 +212,21 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       taskOptions.param(paramName, paramValue);
     }
   }
+
+  @Override
+  public void enqueueDeferred(final String queueNameArg, final DeferredTask deferredTask) {
+    Queue queue = QueueFactory.getQueue(Optional.fromNullable(queueNameArg).or("default"));
+
+    queue.add(TaskOptions
+        .Builder
+        .withPayload(
+            DeferredTaskContext.convertDeferredTaskToPayload(deferredTask),
+            DeferredTaskContext.RUNNABLE_TASK_CONTENT_TYPE)
+        .method(TaskOptions.Method.POST)
+        .url(DeferredTaskContext.DEFAULT_DEFERRED_URL)
+        .countdownMillis(10000)
+        .retryOptions(RetryOptions.Builder.withMinBackoffSeconds(2).maxBackoffSeconds(20))
+    );
+  }
+
 }

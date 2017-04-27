@@ -2,18 +2,22 @@
 
 package com.google.appengine.tools.pipeline;
 
-import static com.google.appengine.tools.pipeline.impl.util.TestUtils.getFailureProperty;
-
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import com.google.appengine.tools.pipeline.impl.model.KeyHelper;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.apphosting.api.ApiProxy;
+import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.google.appengine.tools.pipeline.impl.util.TestUtils.getFailureProperty;
 
 /**
  * A test of the ability of the Pipeline framework to handle orphaned jobs.
@@ -21,6 +25,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public class OrphanedJobGraphTest extends PipelineTest {
+
+  private AppEngineBackEnd backend;
 
   @Override
   protected boolean isHrdSafe() {
@@ -30,6 +36,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
   @Override
   public void setUp() throws Exception {
     super.setUp();
+    backend = new AppEngineBackEnd(new AppEngineTaskQueue(), DatastoreOptions.getDefaultInstance().getService());
     GeneratorJob.runCount.set(0);
     ChildJob.runCount.set(0);
     SupplyPromisedValueRunnable.orphanedObjectExcetionCount.set(0);
@@ -48,8 +55,8 @@ public class OrphanedJobGraphTest extends PipelineTest {
    * time and it will succeed. Only the third child job graph is non-orphaned
    * and should be activated by tasks and run. The orphaned jobs will be cleaned
    * up when the Pipeline is deleted.
-   *
    */
+  @Test
   public void testOrphanedJobGraph() throws Exception {
     doOrphanedJobGraphTest(false);
   }
@@ -66,6 +73,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
    * {@link OrphanedObjectException} when {@code submitPromisedValue()} is
    * invoked on an orphaned promise handle.
    */
+  @Test
   public void testOrphanedJobGraphWithPromisedValue() throws Exception {
     doOrphanedJobGraphTest(true);
   }
@@ -75,8 +83,8 @@ public class OrphanedJobGraphTest extends PipelineTest {
    * {@link #testOrphanedJobGraphWithPromisedValue()}.
    *
    * @param usePromisedValue Should the child job be activated via a promised
-   *        value. If this is {@code false} then the child job is activated via
-   *        an immediate value.
+   *                         value. If this is {@code false} then the child job is activated via
+   *                         an immediate value.
    */
   private void doOrphanedJobGraphTest(boolean usePromisedValue) throws Exception {
 
@@ -87,37 +95,37 @@ public class OrphanedJobGraphTest extends PipelineTest {
 
     // The GeneratorJob run() should have failed twice just before the final
     // transaction and succeeded a third time
-    assertTrue(GeneratorJob.runCount.get() >= 2);
+    Assert.assertTrue(GeneratorJob.runCount.get() >= 2);
 
     // The ChildJob should only have been run once. The two orphaned jobs were
     // never run
-    assertEquals(1, ChildJob.runCount.get());
+    Assert.assertEquals(1, ChildJob.runCount.get());
 
     // Get all of the Pipeline objects so we can confirm the orphaned jobs are
     // really there
     PipelineObjects allObjects = PipelineManager.queryFullPipeline(pipelineHandle);
-    Key rootJobKey = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, pipelineHandle);
+    Key rootJobKey = KeyHelper.createKey(JobRecord.DATA_STORE_KIND, pipelineHandle);
     JobRecord rootJob = allObjects.jobs.get(rootJobKey);
-    assertNotNull(rootJob);
+    Assert.assertNotNull(rootJob);
     String graphGuid = rootJob.getChildGraphGuid();
-    assertNotNull(graphGuid);
+    Assert.assertNotNull(graphGuid);
     int numJobs = allObjects.jobs.size();
-    assertEquals(2, numJobs);
+    Assert.assertEquals(2, numJobs);
     int numOrphanedJobs = 0;
     int numNonOrphanedJobs = 0;
 
     // Look through all of the JobRecords in the data store
     for (JobRecord record : allObjects.jobs.values()) {
       // They all have the right rooJobKey
-      assertEquals(rootJobKey, record.getRootJobKey());
+      Assert.assertEquals(rootJobKey, record.getRootJobKey());
       if (record.getKey().equals(rootJobKey)) {
         // This one is the root job
-        assertNull(record.getGraphGuid());
-        assertNull(record.getGeneratorJobKey());
+        Assert.assertNull(record.getGraphGuid());
+        Assert.assertNull(record.getGeneratorJobKey());
         continue;
       }
       // If its not the root job then it was generated by the root job
-      assertEquals(rootJobKey, record.getGeneratorJobKey());
+      Assert.assertEquals(rootJobKey, record.getGeneratorJobKey());
 
       // Count the generated jobs that are orphaned and not orphaned
       if (graphGuid.equals(record.getGraphGuid())) {
@@ -128,30 +136,29 @@ public class OrphanedJobGraphTest extends PipelineTest {
     }
 
     // There should be one non-orphaned and at least two orphaned
-    assertEquals(1, numNonOrphanedJobs);
-    assertEquals(0, numOrphanedJobs);
+    Assert.assertEquals(1, numNonOrphanedJobs);
+    Assert.assertEquals(0, numOrphanedJobs);
 
     if (usePromisedValue) {
       // If we are using promised-value activation then an
       // OrphanedObjectException should have been caught at least twice.
       int orphanedObjectExcetionCount =
-          SupplyPromisedValueRunnable.orphanedObjectExcetionCount.get();
-      assertTrue("Was expecting orphanedObjectExcetionCount to be more than one, but it was "
-          + orphanedObjectExcetionCount, orphanedObjectExcetionCount  >= 2);
+              SupplyPromisedValueRunnable.orphanedObjectExcetionCount.get();
+      Assert.assertTrue("Was expecting orphanedObjectExcetionCount to be more than one, but it was "
+              + orphanedObjectExcetionCount, orphanedObjectExcetionCount >= 2);
     }
 
     // Now delete the whole Pipeline
     service.deletePipelineRecords(pipelineHandle);
 
     // Check that all jobs have been deleted
-    AppEngineBackEnd backend = new AppEngineBackEnd();
     Iterable<Entity> jobs = backend.queryAll(JobRecord.DATA_STORE_KIND, rootJobKey);
     numJobs = 0;
     // TODO(user): replace with Iterables.size once b/11899553 is fixed
     for (@SuppressWarnings("unused") Entity entity : jobs) {
       numJobs++;
     }
-    assertEquals(0, numJobs);
+    Assert.assertEquals(0, numJobs);
   }
 
   /**
@@ -162,10 +169,9 @@ public class OrphanedJobGraphTest extends PipelineTest {
   @SuppressWarnings("serial")
   private static class GeneratorJob extends Job0<Void> {
 
-    public static AtomicInteger runCount = new AtomicInteger(0);
     private static final String SHOULD_FAIL_PROPERTY =
-        getFailureProperty("AppEngineBackeEnd.saveWithJobStateCheck.beforeFinalTransaction");
-
+            getFailureProperty("AppEngineBackeEnd.saveWithJobStateCheck.beforeFinalTransaction");
+    public static AtomicInteger runCount = new AtomicInteger(0);
     boolean usePromise;
 
     public GeneratorJob(boolean usePromise) {
@@ -182,7 +188,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
       if (usePromise) {
         PromisedValue<Integer> promisedValue = newPromise();
         (new Thread(new SupplyPromisedValueRunnable(ApiProxy.getCurrentEnvironment(),
-            promisedValue.getHandle()))).start();
+                promisedValue.getHandle()))).start();
         dummyValue = promisedValue;
       } else {
         dummyValue = immediate(0);
@@ -209,13 +215,12 @@ public class OrphanedJobGraphTest extends PipelineTest {
   /**
    * A {@code Runnable} for invoking the method
    * {@link PipelineService#submitPromisedValue(String, Object)}.
-   *
    */
   private static class SupplyPromisedValueRunnable implements Runnable {
 
+    public static AtomicInteger orphanedObjectExcetionCount = new AtomicInteger(0);
     private String promiseHandle;
     private ApiProxy.Environment apiProxyEnvironment;
-    public static AtomicInteger orphanedObjectExcetionCount = new AtomicInteger(0);
 
     public SupplyPromisedValueRunnable(ApiProxy.Environment environment, String promiseHandle) {
       this.promiseHandle = promiseHandle;
