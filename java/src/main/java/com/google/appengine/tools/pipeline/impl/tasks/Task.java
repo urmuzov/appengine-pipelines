@@ -69,6 +69,30 @@ public abstract class Task {
         return task.getQueueSettings().getOnQueue();
       }
     },
+
+    ON_SERVICE {
+      @Override
+      void setProperty(Task task, String value) {
+        task.getQueueSettings().setOnService(value);
+      }
+
+      @Override
+      String getProperty(Task task) {
+        return task.getQueueSettings().getOnService();
+      }
+    },
+
+    ON_VERSION {
+      @Override
+      void setProperty(Task task, String value) {
+        task.getQueueSettings().setOnVersion(value);
+      }
+
+      @Override
+      String getProperty(Task task) {
+        return task.getQueueSettings().getOnVersion();
+      }
+    },
     QUEUE_RETRY_TASK_RETRY_LIMIT {
       @Override
       void setProperty(Task task, String value) {
@@ -157,6 +181,7 @@ public abstract class Task {
     static final Set<TaskProperty> ALL = EnumSet.allOf(TaskProperty.class);
 
     abstract void setProperty(Task task, String value);
+
     abstract String getProperty(Task task);
 
     void applyFrom(Task task, Properties properties) {

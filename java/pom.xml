@@ -9,7 +9,7 @@
   <organization>
     <name>Google</name>
   </organization>
-  <version>0.2.13-CA-QUEUE-PROXY-SNAPSHOT</version>
+  <version>0.2.13-CA-CLOUDTASKS-SNAPSHOT</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -19,6 +19,7 @@
   </licenses>
   <properties>
     <appengine.target.version>1.9.51</appengine.target.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
   <build>
     <plugins>
@@ -110,7 +111,7 @@
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-datastore</artifactId>
-      <version>1.0.0-rc2</version>
+      <version>1.0.0</version>
     </dependency>
     <dependency>
       <groupId>com.gigware</groupId>

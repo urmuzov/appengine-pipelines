@@ -154,6 +154,32 @@ public interface JobSetting extends Serializable {
   }
 
   /**
+   * A setting for specifying what service to run a job on.
+   */
+  final class OnService extends StringValuedSetting {
+
+    private static final long serialVersionUID = -239968568113511744L;
+    public static final String DEFAULT = null;
+
+    public OnService(String backend) {
+      super(backend);
+    }
+  }
+
+  /**
+   * A setting for specifying what backend to run a job on.
+   */
+  final class OnVersion extends StringValuedSetting {
+
+    private static final long serialVersionUID = -239968568113511744L;
+    public static final String DEFAULT = null;
+
+    public OnVersion(String backend) {
+      super(backend);
+    }
+  }
+
+  /**
    * A setting for specifying which queue to run a job on.
    */
   final class OnQueue extends StringValuedSetting {

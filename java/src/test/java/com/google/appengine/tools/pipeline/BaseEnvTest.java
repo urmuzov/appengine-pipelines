@@ -5,7 +5,7 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
-import org.joda.time.Duration;
+import org.threeten.bp.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -45,7 +45,7 @@ public class BaseEnvTest {
   @AfterClass
   public static void tearDownClass() {
     try {
-      localDatastoreHelper.stop(Duration.standardSeconds(2));
+      localDatastoreHelper.stop(Duration.ofSeconds(2));
     } catch (IOException e) {
       e.printStackTrace();
     } catch (InterruptedException e) {

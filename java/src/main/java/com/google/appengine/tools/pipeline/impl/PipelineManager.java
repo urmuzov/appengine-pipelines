@@ -23,9 +23,9 @@ import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.OrphanedObjectException;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.backend.CloudTaskQueue;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
-import com.google.appengine.tools.pipeline.impl.backend.ProxyAppEngineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.backend.TaskAlreadyExistException;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec.Group;
@@ -562,8 +562,8 @@ public class PipelineManager {
 
   public synchronized static PipelineBackEnd getBackEnd() {
     if (backEnd == null) {
-      if (System.getProperty(ProxyAppEngineTaskQueue.TASKQUEUE_PROXY_URL_PROPERTY) != null) {
-        backEnd = new AppEngineBackEnd(new ProxyAppEngineTaskQueue(), DatastoreOptions.getDefaultInstance().getService());
+      if (System.getProperty(CloudTaskQueue.CLOUDTASKS_API_ROOT_URL_PROPERTY) != null) {
+        backEnd = new AppEngineBackEnd(new CloudTaskQueue(), DatastoreOptions.getDefaultInstance().getService());
       } else {
         backEnd = new AppEngineBackEnd(new AppEngineTaskQueue(), DatastoreOptions.getDefaultInstance().getService());
       }

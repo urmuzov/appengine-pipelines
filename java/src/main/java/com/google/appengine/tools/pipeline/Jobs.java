@@ -14,13 +14,10 @@
 
 package com.google.appengine.tools.pipeline;
 
-import com.gigware.cloudmine.appengine.model.RetryOptions;
-import com.gigware.cloudmine.appengine.model.TaskOptions;
 import com.gigware.deferred.DeferredTask;
 import com.gigware.deferred.DeferredTaskContext;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import javax.servlet.http.HttpServletRequest;

@@ -60,7 +60,7 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.datastore.v1.client.DatastoreException;
-import org.joda.time.Duration;
+import org.threeten.bp.Duration;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -92,13 +92,13 @@ public class AppEngineBackEnd implements PipelineBackEnd {
 
   public static final RetrySettings RETRY_PARAMS = RetrySettings.newBuilder()
       .setRetryDelayMultiplier(2)
-      .setInitialRetryDelay(Duration.millis(300L))
-      .setMaxRetryDelay(Duration.millis(5000L))
+      .setInitialRetryDelay(Duration.ofMillis(300L))
+      .setMaxRetryDelay(Duration.ofMillis(5000L))
       .setMaxAttempts(5)
-      .setTotalTimeout(Duration.standardSeconds(120))
-      .setInitialRpcTimeout(Duration.millis(300L))
+      .setTotalTimeout(Duration.ofSeconds(120))
+      .setInitialRpcTimeout(Duration.ofMillis(300L))
       .setRpcTimeoutMultiplier(2.)
-      .setMaxRpcTimeout(Duration.standardSeconds(3))
+      .setMaxRpcTimeout(Duration.ofSeconds(3))
       .build();
   private static final ExceptionHandler EXCEPTION_HANDLER = ExceptionHandler.newBuilder().retryOn(
       ConcurrentModificationException.class, DatastoreException.class)
@@ -106,6 +106,8 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   private static final Logger logger = Logger.getLogger(AppEngineBackEnd.class.getName());
 
   private static final int MAX_BLOB_BYTE_SIZE = 1000000;
+  private static final int MAX_ENTITY_COUNT_PUT = 500;
+
   private final PipelineTaskQueue taskQueue;
   private final Datastore dataStore;
 
@@ -123,7 +125,10 @@ public class AppEngineBackEnd implements PipelineBackEnd {
       logger.finest("Storing: " + x);
       entityList.add(x.toEntity());
     }
-    dataStore.put(entityList.toArray(new FullEntity[entityList.size()]));
+    List<List<Entity>> partitions = Lists.partition(entityList, MAX_ENTITY_COUNT_PUT);
+    for (final List<Entity> partition : partitions) {
+      dataStore.put(partition.toArray(new FullEntity[partition.size()]));
+    }
   }
 
   private void saveAll(UpdateSpec.Group group) {

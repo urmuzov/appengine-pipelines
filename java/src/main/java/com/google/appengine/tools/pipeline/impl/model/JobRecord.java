@@ -25,6 +25,8 @@ import com.google.appengine.tools.pipeline.JobSetting.IntValuedSetting;
 import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;
 import com.google.appengine.tools.pipeline.JobSetting.OnBackend;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
+import com.google.appengine.tools.pipeline.JobSetting.OnService;
+import com.google.appengine.tools.pipeline.JobSetting.OnVersion;
 import com.google.appengine.tools.pipeline.JobSetting.QueueRetryMaxBackoffSeconds;
 import com.google.appengine.tools.pipeline.JobSetting.QueueRetryMaxDoublings;
 import com.google.appengine.tools.pipeline.JobSetting.QueueRetryMinBackoffSeconds;
@@ -137,6 +139,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   private static final String BACKOFF_SECONDS_PROPERTY = "backoffSeconds";
   private static final String BACKOFF_FACTOR_PROPERTY = "backoffFactor";
   private static final String ON_BACKEND_PROPERTY = "onBackend";
+  private static final String ON_SERVICE_PROPERTY = "onService";
+  private static final String ON_VERSION_PROPERTY = "onVersion";
   private static final String ON_QUEUE_PROPERTY = "onQueue";
   private static final String QUEUE_RETRY_TASK_RETRY_LIMIT_PROPERTY = "queueRetryTaskRetryLimit";
   private static final String QUEUE_RETRY_TASK_AGE_LIMIT_SECONDS_PROPERTY = "queueRetryTaskAgeLimitSeconds";
@@ -229,6 +233,12 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     if (entity.getNames().contains(ON_BACKEND_PROPERTY)) {
       queueSettings.setOnBackend(entity.getString(ON_BACKEND_PROPERTY));
     }
+    if (entity.getNames().contains(ON_SERVICE_PROPERTY)) {
+      queueSettings.setOnService(entity.getString(ON_SERVICE_PROPERTY));
+    }
+    if (entity.getNames().contains(ON_VERSION_PROPERTY)) {
+      queueSettings.setOnVersion(entity.getString(ON_VERSION_PROPERTY));
+    }
     if (entity.getNames().contains(ON_QUEUE_PROPERTY)) {
       queueSettings.setOnQueue(entity.getString(ON_QUEUE_PROPERTY));
     }
@@ -301,6 +311,12 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     entity.set(BACKOFF_FACTOR_PROPERTY, backoffFactor);
     if (queueSettings.getOnBackend() != null) {
       entity.set(ON_BACKEND_PROPERTY, queueSettings.getOnBackend());
+    }
+    if (queueSettings.getOnService() != null) {
+      entity.set(ON_SERVICE_PROPERTY, queueSettings.getOnService());
+    }
+    if (queueSettings.getOnVersion() != null) {
+      entity.set(ON_VERSION_PROPERTY, queueSettings.getOnVersion());
     }
     if (queueSettings.getOnQueue() != null) {
       entity.set(ON_QUEUE_PROPERTY, queueSettings.getOnQueue());
@@ -397,7 +413,23 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       queueSettings.merge(parentQueueSettings);
     }
     if (queueSettings.getOnBackend() == null) {
-      queueSettings.setOnBackend(getCurrentBackend());
+      String service = queueSettings.getOnService();
+      String version = queueSettings.getOnVersion();
+      if (service == null) {
+        String currentBackend = getCurrentBackend();
+        if (currentBackend != null) {
+          queueSettings.setOnBackend(currentBackend);
+        } else {
+          queueSettings.setOnService(getCurrentService());
+          queueSettings.setOnVersion(getCurrentVersion());
+        }
+      } else if (version == null) {
+        if (service.equals(getCurrentService())) {
+          queueSettings.setOnVersion(getCurrentVersion());
+        } else {
+          queueSettings.setOnVersion("default");
+        }
+      }
     }
   }
 
@@ -415,6 +447,16 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       currentBackend = null;
     }
     return currentBackend;
+  }
+
+  private static String getCurrentService() {
+    String service = System.getenv("GAE_SERVICE");
+    return service == null ? System.getProperty("GAE_SERVICE") : service;
+  }
+
+  private static String getCurrentVersion() {
+    String version = System.getenv("GAE_VERSION");
+    return version == null ? System.getProperty("GAE_VERSION") : version;
   }
 
   // Constructor for Root Jobs (called by {@link #createRootJobRecord}).
@@ -485,6 +527,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       }
     } else if (setting instanceof OnBackend) {
       queueSettings.setOnBackend(((OnBackend) setting).getValue());
+    } else if (setting instanceof OnService) {
+      queueSettings.setOnService(((OnService) setting).getValue());
+    } else if (setting instanceof OnVersion) {
+      queueSettings.setOnVersion(((OnVersion) setting).getValue());
     } else if (setting instanceof OnQueue) {
       queueSettings.setOnQueue(((OnQueue) setting).getValue());
     } else if (setting instanceof StatusConsoleUrl) {

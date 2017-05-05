@@ -176,7 +176,7 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T> FutureValue<T> futureCallUnchecked(JobSetting[] settings, Job<?> jobInstance,
-                                                Object... params) {
+      Object... params) {
     JobRecord childJobRecord = PipelineManager.registerNewJobRecord(
         updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
     thisJobRecord.appendChildKey(childJobRecord.getKey());
@@ -238,7 +238,7 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T, T1, T2> FutureValue<T> futureCall(Job2<T, T1, T2> jobInstance, Value<? extends T1> v1,
-                                               Value<? extends T2> v2, JobSetting... settings) {
+      Value<? extends T2> v2, JobSetting... settings) {
     return futureCallUnchecked(settings, jobInstance, v1, v2);
   }
 
@@ -262,8 +262,8 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T, T1, T2, T3> FutureValue<T> futureCall(Job3<T, T1, T2, T3> jobInstance,
-                                                   Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
-                                                   JobSetting... settings) {
+      Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
+      JobSetting... settings) {
     return futureCallUnchecked(settings, jobInstance, v1, v2, v3);
   }
 
@@ -289,8 +289,8 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T, T1, T2, T3, T4> FutureValue<T> futureCall(Job4<T, T1, T2, T3, T4> jobInstance,
-                                                       Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
-                                                       Value<? extends T4> v4, JobSetting... settings) {
+      Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
+      Value<? extends T4> v4, JobSetting... settings) {
     return futureCallUnchecked(settings, jobInstance, v1, v2, v3, v4);
   }
 
@@ -318,8 +318,8 @@ public abstract class Job<E> implements Serializable {
    *         order to specify a data dependency.
    */
   public <T, T1, T2, T3, T4, T5> FutureValue<T> futureCall(Job5<T, T1, T2, T3, T4, T5> jobInstance,
-                                                           Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
-                                                           Value<? extends T4> v4, Value<? extends T5> v5, JobSetting... settings) {
+      Value<? extends T1> v1, Value<? extends T2> v2, Value<? extends T3> v3,
+      Value<? extends T4> v4, Value<? extends T5> v5, JobSetting... settings) {
     return futureCallUnchecked(settings, jobInstance, v1, v2, v3, v4, v5);
   }
 
@@ -471,6 +471,24 @@ public abstract class Job<E> implements Serializable {
   }
 
   /**
+   * Constructs a new {@code JobSetting.OnService}. This method is only
+   * syntactic sugar. {@code onService(x)} is equivalent to
+   * {@code new JobSetting.OnService(x)}.
+   */
+  public static JobSetting.OnService onService(String service) {
+    return new JobSetting.OnService(service);
+  }
+
+  /**
+   * Constructs a new {@code JobSetting.OnVersion}. This method is only
+   * syntactic sugar. {@code onVersion(x)} is equivalent to
+   * {@code new JobSetting.OnVersion(x)}.
+   */
+  public static JobSetting.OnVersion onVersion(String version) {
+    return new JobSetting.OnVersion(version);
+  }
+
+  /**
    * Constructs a new {@code JobSetting.OnQueue}. This method is only
    * syntactic sugar. {@code onQueue(x)} is equivalent to
    * {@code new JobSetting.OnQueue(x)}.
@@ -541,6 +559,14 @@ public abstract class Job<E> implements Serializable {
 
   protected String getOnBackend() {
     return thisJobRecord.getQueueSettings().getOnBackend();
+  }
+
+  protected String getOnService() {
+    return thisJobRecord.getQueueSettings().getOnService();
+  }
+
+  protected String getOnVersion() {
+    return thisJobRecord.getQueueSettings().getOnVersion();
   }
 
   /**

@@ -11,6 +11,8 @@ public final class QueueSettings implements Cloneable {
 
   private String onBackend;
   private String onQueue;
+  private String onService;
+  private String onVersion;
   private Long queueRetryTaskRetryLimit;
   private Long queueRetryTaskAgeLimitSeconds;
   private Long queueRetryMinBackoffSeconds;
@@ -25,6 +27,12 @@ public final class QueueSettings implements Cloneable {
   public QueueSettings merge(QueueSettings other) {
     if (onBackend == null) {
       onBackend = other.getOnBackend();
+    }
+    if (onService == null) {
+      onService = other.getOnService();
+    }
+    if (onVersion == null) {
+      onVersion = other.getOnVersion();
     }
     if (onQueue == null) {
       onQueue = other.getOnQueue();
@@ -54,6 +62,24 @@ public final class QueueSettings implements Cloneable {
 
   public String getOnBackend() {
     return onBackend;
+  }
+
+  public String getOnService() {
+    return onService;
+  }
+
+  public QueueSettings setOnService(final String onService) {
+    this.onService = onService;
+    return this;
+  }
+
+  public String getOnVersion() {
+    return onVersion;
+  }
+
+  public QueueSettings setOnVersion(final String onVersion) {
+    this.onVersion = onVersion;
+    return this;
   }
 
   public QueueSettings setOnQueue(String onQueue) {
@@ -131,6 +157,8 @@ public final class QueueSettings implements Cloneable {
   public String toString() {
     return MoreObjects.toStringHelper(this)
             .add("onBackend", onBackend)
+            .add("onService", onService)
+            .add("onVersion", onVersion)
             .add("onQueue", onQueue)
             .add("queueRetryTaskRetryLimit", queueRetryTaskRetryLimit)
             .add("queueRetryTaskAgeLimitSeconds", queueRetryTaskAgeLimitSeconds)
