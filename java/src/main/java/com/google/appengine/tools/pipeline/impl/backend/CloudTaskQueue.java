@@ -14,8 +14,8 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.gigware.deferred.DeferredTask;
-import com.gigware.deferred.DeferredTaskContext;
+import com.cloudaware.deferred.DeferredTask;
+import com.cloudaware.deferred.DeferredTaskContext;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;

@@ -14,8 +14,8 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.gigware.deferred.DeferredTask;
-import com.gigware.deferred.DeferredTaskContext;
+import com.cloudaware.deferred.DeferredTask;
+import com.cloudaware.deferred.DeferredTaskContext;
 import com.google.api.core.NanoClock;
 import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.modules.ModulesException;

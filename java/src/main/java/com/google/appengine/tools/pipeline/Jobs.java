@@ -14,8 +14,8 @@
 
 package com.google.appengine.tools.pipeline;
 
-import com.gigware.deferred.DeferredTask;
-import com.gigware.deferred.DeferredTaskContext;
+import com.cloudaware.deferred.DeferredTask;
+import com.cloudaware.deferred.DeferredTaskContext;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;

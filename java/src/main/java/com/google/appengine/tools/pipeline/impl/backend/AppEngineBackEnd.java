@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.gigware.deferred.DeferredTask;
+import com.cloudaware.deferred.DeferredTask;
 import com.google.api.core.NanoClock;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;

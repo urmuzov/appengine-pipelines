@@ -1,6 +1,6 @@
 package com.google.appengine.tools.development.testing;
 
-import com.gigware.deferred.DeferredTask;
+import com.cloudaware.deferred.DeferredTask;
 import com.google.appengine.api.NamespaceManager;
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueueCallback;
 import com.google.appengine.api.urlfetch.URLFetchServicePb;

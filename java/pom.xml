@@ -114,9 +114,9 @@
       <version>1.0.0</version>
     </dependency>
     <dependency>
-      <groupId>com.gigware</groupId>
-      <artifactId>deferred-tasks</artifactId>
-      <version>3.0.0-SNAPSHOT</version>
+      <groupId>com.cloudaware</groupId>
+      <artifactId>deferred</artifactId>
+      <version>1.0.0</version>
     </dependency>
     <!-- Test Dependencies -->
     <dependency>

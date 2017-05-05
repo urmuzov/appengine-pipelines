@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.gigware.deferred.DeferredTask;
+import com.cloudaware.deferred.DeferredTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 
 import java.util.Collection;
